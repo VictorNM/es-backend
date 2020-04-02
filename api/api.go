@@ -1,18 +1,18 @@
 package api
 
 import (
-	"errors"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
-	"os"
-	"strconv"
 )
 
 type Server struct {
 	router *gin.Engine
 
-	env env
+	config *ServerConfig
+}
+
+func NewServer(config *ServerConfig) *Server {
+	return &Server{config: config}
 }
 
 func (s *Server) Init() {
@@ -22,23 +22,13 @@ func (s *Server) Init() {
 	// auth
 	authGroup := rootAPI.Group("/auth")
 	authGroup.POST("/sign-in", s.createSignInHandler())
-
-	jwtExpiredHour, err := strconv.Atoi(os.Getenv("TOKEN_EXPIRED_HOURS"))
-	if err != nil {
-		log.Fatal(errors.New(`env invalid: "TOKEN_EXPIRED_HOURS"`))
-	}
-
-	s.env = env{
-		secretKey:      os.Getenv("SECRET"),
-		jwtExpiredHour: jwtExpiredHour,
-	}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-type env struct {
-	secretKey      string
-	jwtExpiredHour int
+type ServerConfig struct {
+	JWTSecret       string
+	JWTExpiredHours int
 }

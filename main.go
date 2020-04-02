@@ -1,19 +1,31 @@
 package main
 
 import (
-	"github.com/joho/godotenv"
+	"fmt"
 	"github.com/victornm/es-backend/api"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
+	config := &api.ServerConfig{
+		JWTSecret:       os.Getenv("SECRET"),
+		JWTExpiredHours: envAsInt("TOKEN_EXPIRED_HOURS"),
+	}
+
+	s := api.NewServer(config)
+	s.Init()
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", envAsInt("HTTP_PORT")), s))
+}
+
+func envAsInt(key string) int {
+	value, err := strconv.Atoi(os.Getenv(key))
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	s := &api.Server{}
-	s.Init()
-
-	log.Fatal(http.ListenAndServe(":8080", s))
+	return value
 }
