@@ -3,7 +3,6 @@ package auth
 import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/victornm/es-backend/user"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
@@ -16,8 +15,8 @@ type BasicSignIner interface {
 	BasicSignIn(email, password string) (string, error)
 }
 
-type UserFinder interface {
-	FindUserByEmail(email string) (*user.DTO, error)
+type TokenParser interface {
+	ParseToken(tokenString string) (*UserAuth, error)
 }
 
 type service struct {
