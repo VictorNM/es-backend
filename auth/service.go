@@ -28,11 +28,11 @@ type service struct {
 	expired time.Duration
 }
 
-func NewService(userGetter UserFinder, secretKey string, expiredHour int) *service {
+func NewService(userGetter UserFinder, secret string, expiredHours int) *service {
 	return &service{
 		userFinder: userGetter,
-		secret:     secretKey,
-		expired:    time.Duration(expiredHour) * time.Hour,
+		secret:     secret,
+		expired:    time.Duration(expiredHours) * time.Hour,
 	}
 }
 

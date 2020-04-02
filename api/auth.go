@@ -12,7 +12,7 @@ import (
  * Body: None
  */
 func (s *Server) createSignInHandler() func(c *gin.Context) {
-	authService := auth.NewService(user.NewMemoryDAO(), s.env.secretKey, s.env.jwtExpiredHour)
+	authService := auth.NewService(user.NewMemoryDAO(), s.config.JWTSecret, s.config.JWTExpiredHours)
 
 	return func(c *gin.Context) {
 		email, password, ok := c.Request.BasicAuth()
