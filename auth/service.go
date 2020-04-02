@@ -54,11 +54,13 @@ func (s *service) BasicSignIn(email, password string) (string, error) {
 		return "", ErrNotAuthenticated
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		ExpiresAt: time.Now().Add(s.expired).Unix(),
-		IssuedAt:  time.Now().Unix(),
-		Issuer:    "auth.service",
-		Subject:   u.Email,
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtClaims{
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(s.expired).Unix(),
+			IssuedAt:  time.Now().Unix(),
+			Issuer:    "auth.service",
+		},
+		UserAuth: &UserAuth{UserID: u.ID},
 	})
 
 	tokenString, err := token.SignedString([]byte(s.secret))
@@ -67,4 +69,27 @@ func (s *service) BasicSignIn(email, password string) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+func (s *service) ParseToken(tokenString string) (*UserAuth, error) {
+	var claims jwtClaims
+
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (i interface{}, err error) {
+		return []byte(s.secret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, ErrNotAuthenticated
+	}
+
+	return claims.UserAuth, nil
+}
+
+type UserAuth struct {
+	UserID int `json:"user_id"`
+}
+
+type jwtClaims struct {
+	jwt.StandardClaims
+	*UserAuth
 }
