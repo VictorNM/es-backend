@@ -36,21 +36,22 @@ func newMockUserDao(users []*user.DTO) *mockUserDAO {
 	return &mockUserDAO{users: users}
 }
 
-func TestBasicLogin(t *testing.T) {
-	users := []*user.DTO{
-		{
-			Email:          "vinhnm@sendo.vn",
-			HashedPassword: genPassword("123abc"),
-		},
-	}
+var users = []*user.DTO{
+	{
+		ID:             1,
+		Email:          "victornm@es.com",
+		HashedPassword: genPassword("123abc"),
+	},
+}
 
+func TestBasicLogin(t *testing.T) {
 	tests := map[string]struct {
 		Email       string
 		Password    string
 		WantedError error
 	}{
 		"happy login": {
-			"vinhnm@sendo.vn",
+			"victornm@es.com",
 			"123abc",
 			nil,
 		},
@@ -60,7 +61,7 @@ func TestBasicLogin(t *testing.T) {
 			auth.ErrNotAuthenticated,
 		},
 		"password not match": {
-			"vinhnm@sendo.vn",
+			"victornm@es.com",
 			"xyz321",
 			auth.ErrNotAuthenticated,
 		},
@@ -73,4 +74,18 @@ func TestBasicLogin(t *testing.T) {
 			assert.Equal(t, test.WantedError, err)
 		})
 	}
+}
+
+func TestParseToken(t *testing.T) {
+	u := users[0]
+
+	s := auth.NewService(newMockUserDao(users), "#12345", 24)
+	tokenString, err := s.BasicSignIn(u.Email, "123abc")
+	if err != nil {
+		t.FailNow()
+	}
+
+	userAuth, err := s.ParseToken(tokenString)
+	assert.NoError(t, err)
+	assert.Equal(t, u.ID, userAuth.UserID)
 }
