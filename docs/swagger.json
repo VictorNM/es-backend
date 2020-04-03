@@ -1,0 +1,158 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "ES API",
+        "contact": {
+            "name": "VictorNM",
+            "url": "https://github.com/VictorNM/"
+        },
+        "license": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/auth/sign-in": {
+            "post": {
+                "description": "Sign in using email and password",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Basic sign in using email, password",
+                "responses": {
+                    "200": {
+                        "description": "sign in successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.authToken"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "not authenticated",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "errors": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/api.Error"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/profile": {
+            "get": {
+                "description": "Get profile by user_id in token,",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get current sign-inned user's profile",
+                "responses": {
+                    "200": {
+                        "description": "get profile successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/user.ProfileDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.BaseResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.Error"
+                    }
+                }
+            }
+        },
+        "api.Error": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.authToken": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.ProfileDTO": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BasicAuth": {
+            "type": "basic"
+        }
+    }
+}
