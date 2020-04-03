@@ -1,0 +1,94 @@
+basePath: /api
+definitions:
+  api.BaseResponse:
+    properties:
+      data:
+        type: object
+      errors:
+        items:
+          $ref: '#/definitions/api.Error'
+        type: array
+    type: object
+  api.Error:
+    properties:
+      message:
+        type: string
+    type: object
+  api.authToken:
+    properties:
+      token:
+        type: string
+    type: object
+  user.ProfileDTO:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      phone:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: VictorNM
+    url: https://github.com/VictorNM/
+  license: {}
+  title: ES API
+  version: "1.0"
+paths:
+  /auth/sign-in:
+    post:
+      description: Sign in using email and password
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: sign in successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.authToken'
+              type: object
+        "401":
+          description: not authenticated
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                errors:
+                  items:
+                    $ref: '#/definitions/api.Error'
+                  type: array
+              type: object
+      summary: Basic sign in using email, password
+      tags:
+      - auth
+  /profile:
+    get:
+      description: Get profile by user_id in token,
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: get profile successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.ProfileDTO'
+              type: object
+      summary: Get current sign-inned user's profile
+      tags:
+      - user
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
