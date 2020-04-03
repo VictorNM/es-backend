@@ -1,12 +1,13 @@
-package user
+package memory
 
 import (
 	"errors"
+	"github.com/victornm/es-backend/store"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 )
 
-var fixedUsers = []*DTO{
+var fixedUsers = []*store.UserRow{
 	{
 		ID:             1,
 		Email:          "admin1@es.com",
@@ -33,11 +34,11 @@ func genPassword(password string) string {
 	return string(hashed)
 }
 
-type memoryDAO struct {
-	users []*DTO
+type userStore struct {
+	users []*store.UserRow
 }
 
-func (dao *memoryDAO) FindUserByEmail(email string) (*DTO, error) {
+func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
 	for _, u := range dao.users {
 		if u.Email == email {
 			return u, nil
@@ -46,6 +47,15 @@ func (dao *memoryDAO) FindUserByEmail(email string) (*DTO, error) {
 	return nil, errors.New("user not found")
 }
 
-func NewMemoryDAO() *memoryDAO {
-	return &memoryDAO{users: fixedUsers}
+func (dao *userStore) FindUserByID(id int) (*store.UserRow, error) {
+	for _, u := range dao.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func NewUserStore() *userStore {
+	return &userStore{users: fixedUsers}
 }
