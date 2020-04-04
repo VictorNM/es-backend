@@ -1,9 +1,13 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"net/http"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/swaggo/gin-swagger/swaggerFiles"
+	_ "github.com/victornm/es-backend/docs"
 )
 
 type Server struct {
@@ -16,6 +20,18 @@ func NewServer(config *ServerConfig) *Server {
 	return &Server{config: config}
 }
 
+// @title ES API
+// @version 1.0
+
+// @contact.name VictorNM
+// @contact.url https://github.com/VictorNM/
+
+// @host localhost:8080
+// @BasePath /api
+
+// @securityDefinitions.basic BasicAuth
+// @in header
+// @name Authorization
 func (s *Server) Init() {
 	router := gin.Default()
 
@@ -25,10 +41,14 @@ func (s *Server) Init() {
 
 	// sign in
 	authGroup := rootAPI.Group("/auth")
-	authGroup.POST("/sign-in", s.createSignInHandler())
+	{
+		authGroup.POST("/sign-in", s.createSignInHandler())
+	}
 
 	// user profile
 	rootAPI.GET("/profile", s.createAuthMiddleware(), s.createGetProfileHandler())
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	s.router = router
 }

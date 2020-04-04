@@ -1,17 +1,21 @@
 package api
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/victornm/es-backend/auth"
 	"github.com/victornm/es-backend/store/memory"
-	"net/http"
-	"strings"
 )
 
-/*
- * Header: Authorization: Basic YWRtaW4xQGVzLmNvbTphZG1pbg==
- * Body: None
- */
+// @Summary Basic sign in using email, password
+// @Description Sign in using email and password
+// @Tags auth
+// @Produce  json
+// @Success 200 {object} api.BaseResponse{data=authToken} "sign in successfully"
+// @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "not authenticated"
+// @Router /auth/sign-in [post]
 func (s *Server) createSignInHandler() func(c *gin.Context) {
 	authService := s.createAuthBasicSignIner()
 
@@ -28,8 +32,12 @@ func (s *Server) createSignInHandler() func(c *gin.Context) {
 			return
 		}
 
-		response(c, http.StatusOK, map[string]string{"token": tokenString})
+		response(c, http.StatusOK, authToken{Token: tokenString})
 	}
+}
+
+type authToken struct {
+	Token string `json:"token"`
 }
 
 func (s *Server) createAuthMiddleware() gin.HandlerFunc {
