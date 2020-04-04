@@ -7,7 +7,7 @@ import (
 var ErrNotFound = errors.New("user not found")
 
 type queryService struct {
-	finder FindUserByID
+	finder Finder
 }
 
 /*
@@ -40,7 +40,7 @@ func (s *queryService) GetProfile(id int) (*ProfileDTO, error) {
 	}, nil
 }
 
-func NewQueryService(finder FindUserByID) *queryService {
+func NewQueryService(finder Finder) *queryService {
 	return &queryService{
 		finder: finder,
 	}

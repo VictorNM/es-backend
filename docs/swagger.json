@@ -12,14 +12,98 @@
     "host": "localhost:8080",
     "basePath": "/api",
     "paths": {
-        "/auth/sign-in": {
+        "/users/profile": {
+            "get": {
+                "description": "Get profile by user_id in token,",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get current sign-inned user's profile",
+                "responses": {
+                    "200": {
+                        "description": "get profile successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/user.ProfileDTO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/users/register": {
             "post": {
                 "description": "Sign in using email and password",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
+                ],
+                "summary": "Basic sign in using email, password",
+                "parameters": [
+                    {
+                        "description": "Add account",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.UserRegisterMutation"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "sign in successfully",
+                        "schema": {
+                            "$ref": "#/definitions/api.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "bad request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "errors": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/api.Error"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/users/sign-in": {
+            "post": {
+                "description": "Sign in using email and password",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
                 ],
                 "summary": "Basic sign in using email, password",
                 "responses": {
@@ -64,38 +148,6 @@
                     }
                 }
             }
-        },
-        "/profile": {
-            "get": {
-                "description": "Get profile by user_id in token,",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user"
-                ],
-                "summary": "Get current sign-inned user's profile",
-                "responses": {
-                    "200": {
-                        "description": "get profile successfully",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/api.BaseResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/user.ProfileDTO"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -125,6 +177,25 @@
             "type": "object",
             "properties": {
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.UserRegisterMutation": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "password_confirmation"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "password_confirmation": {
                     "type": "string"
                 }
             }

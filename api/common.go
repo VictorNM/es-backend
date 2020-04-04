@@ -1,6 +1,10 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/victornm/es-backend/user"
+	"log"
+)
 
 type Error struct {
 	Message string `json:"message"`
@@ -28,4 +32,13 @@ func response(c *gin.Context, code int, data interface{}) {
 		Errors: nil,
 		Data:   data,
 	})
+}
+
+func getUser(c *gin.Context) *user.AuthDTO {
+	userAuth, ok := c.Get("user")
+	if !ok {
+		log.Panic("key 'user' should be present in context")
+	}
+
+	return userAuth.(*user.AuthDTO)
 }
