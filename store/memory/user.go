@@ -9,17 +9,14 @@ import (
 
 var fixedUsers = []*store.UserRow{
 	{
-		ID:             1,
 		Email:          "admin1@es.com",
 		HashedPassword: genPassword("admin"),
 	},
 	{
-		ID:             2,
 		Email:          "admin2@es.com",
 		HashedPassword: genPassword("admin"),
 	},
 	{
-		ID:             3,
 		Email:          "admin3@es.com",
 		HashedPassword: genPassword("admin"),
 	},
@@ -35,7 +32,8 @@ func genPassword(password string) string {
 }
 
 type userStore struct {
-	users []*store.UserRow
+	currentID int
+	users     []*store.UserRow
 }
 
 func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
@@ -56,6 +54,28 @@ func (dao *userStore) FindUserByID(id int) (*store.UserRow, error) {
 	return nil, errors.New("user not found")
 }
 
+func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
+	for _, row := range dao.users {
+		if u.Email == row.Email {
+			return 0, errors.New("email existed")
+		}
+	}
+
+	dao.currentID++
+	u.ID = dao.currentID
+	dao.users = append(dao.users, u)
+
+	return u.ID, nil
+}
+
 func NewUserStore() *userStore {
-	return &userStore{users: fixedUsers}
+	s := &userStore{currentID: 0}
+	for _, u := range fixedUsers {
+		_, err := s.CreateUser(u)
+		if err != nil {
+			log.Fatalf("init memory user store failed: %v", err)
+		}
+	}
+
+	return s
 }
