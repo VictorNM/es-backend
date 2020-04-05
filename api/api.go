@@ -34,22 +34,23 @@ func NewServer(config *ServerConfig) *Server {
 // @name Authorization
 func (s *Server) Init() {
 	router := gin.Default()
-
 	router.Use(cors.Default()) // TODO: change this setting later
 
 	rootAPI := router.Group("/api")
 
-	// sign in
-	authGroup := rootAPI.Group("/auth")
+	// user
+	userGroup := rootAPI.Group("/users")
 	{
-		authGroup.POST("/sign-in", s.createSignInHandler())
+		// not auth handlers
+		userGroup.POST("/sign-in", s.createSignInHandler())
+		userGroup.POST("/register", s.createRegisterHandler())
+	}
+	{
+		// auth handler
+		userGroup.GET("/profile", s.createAuthMiddleware(), s.createGetProfileHandler())
 	}
 
-	// user profile
-	rootAPI.GET("/profile", s.createAuthMiddleware(), s.createGetProfileHandler())
-
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
 	s.router = router
 }
 
