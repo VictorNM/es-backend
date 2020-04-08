@@ -40,7 +40,7 @@ var doc = `{
                 "summary": "Get current sign-inned user's profile",
                 "responses": {
                     "200": {
-                        "description": "get profile successfully",
+                        "description": "Get profile successfully",
                         "schema": {
                             "allOf": [
                                 {
@@ -72,24 +72,24 @@ var doc = `{
                 "summary": "Basic sign in using email, password",
                 "parameters": [
                     {
-                        "description": "Add account",
+                        "description": "Register new user",
                         "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.UserRegisterMutation"
+                            "$ref": "#/definitions/user.RegisterMutation"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "sign in successfully",
+                    "201": {
+                        "description": "Register successfully",
                         "schema": {
                             "$ref": "#/definitions/api.BaseResponse"
                         }
                     },
                     "400": {
-                        "description": "bad request",
+                        "description": "Bad request",
                         "schema": {
                             "allOf": [
                                 {
@@ -124,7 +124,7 @@ var doc = `{
                 "summary": "Basic sign in using email, password",
                 "responses": {
                     "200": {
-                        "description": "sign in successfully",
+                        "description": "Sign in successfully",
                         "schema": {
                             "allOf": [
                                 {
@@ -142,7 +142,7 @@ var doc = `{
                         }
                     },
                     "401": {
-                        "description": "not authenticated",
+                        "description": "Not authenticated",
                         "schema": {
                             "allOf": [
                                 {
@@ -184,6 +184,9 @@ var doc = `{
         "api.Error": {
             "type": "object",
             "properties": {
+                "detail": {
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 }
@@ -193,25 +196,6 @@ var doc = `{
             "type": "object",
             "properties": {
                 "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.UserRegisterMutation": {
-            "type": "object",
-            "required": [
-                "email",
-                "password",
-                "password_confirmation"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "password_confirmation": {
                     "type": "string"
                 }
             }
@@ -232,6 +216,35 @@ var doc = `{
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.RegisterMutation": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "password_confirmation",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "password_confirmation": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

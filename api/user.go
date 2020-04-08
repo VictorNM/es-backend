@@ -44,8 +44,8 @@ type authToken struct {
 // @Description Sign in using email and password
 // @Tags user
 // @Produce json
-// @Param user body auth.RegisterMutation true "Register new user"
-// @Success 200 {object} api.BaseResponse "Register successfully"
+// @Param user body user.RegisterMutation true "Register new user"
+// @Success 201 {object} api.BaseResponse "Register successfully"
 // @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
 // @Router /users/register [post]
 func (s *Server) createRegisterHandler() func(c *gin.Context) {
