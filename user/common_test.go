@@ -64,3 +64,16 @@ func mustHashPassword(password string) string {
 
 	return hashed
 }
+
+// withoutValidate temporary disable validation
+func withoutValidate(f func()) {
+	origin := validate
+	validate = func(o interface{}) error {
+		return nil
+	}
+	defer func() {
+		validate = origin
+	}()
+
+	f()
+}

@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/victornm/es-backend/store"
 	"golang.org/x/crypto/bcrypt"
@@ -17,7 +18,10 @@ var (
 
 	// Common error
 	ErrInvalidInput = errors.New("invalid input")
+	ErrUnknown      = errors.New("unknown error")
 )
+
+// ===== Basic sign in =====
 
 type BasicSignInService interface {
 	BasicSignIn(email, password string) (string, error)
@@ -50,7 +54,7 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 		Password: password,
 	}
 
-	if err := validate.Struct(input); err != nil {
+	if err := validate(input); err != nil {
 		return "", ErrInvalidInput
 	}
 
@@ -85,6 +89,8 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 
 	return tokenString, nil
 }
+
+// ===== JWT =====
 
 type JWTParserService interface {
 	ParseToken(tokenString string) (*AuthDTO, error)
@@ -121,14 +127,19 @@ func NewJWTParserService(secret string) *jwtParserService {
 	return &jwtParserService{secret: secret}
 }
 
+// ===== Register =====
+
 type RegisterService interface {
 	Register(input *RegisterMutation) error
 }
 
 type RegisterMutation struct {
 	Email                string `json:"email" validate:"required,email"`
+	Username             string `json:"username" validate:"required,min=8,max=255"`
 	Password             string `json:"password" validate:"required,password"`
 	PasswordConfirmation string `json:"password_confirmation" validate:"required,eqfield=Password"`
+	FirstName            string `json:"first_name"`
+	LastName             string `json:"last_name"`
 }
 
 type registerService struct {
@@ -136,17 +147,17 @@ type registerService struct {
 }
 
 func (s *registerService) Register(input *RegisterMutation) error {
-	if err := validate.Struct(input); err != nil {
-		return ErrInvalidInput
+	if err := validate(input); err != nil {
+		return wrapError(ErrInvalidInput, err)
 	}
 
 	if _, err := s.dao.FindUserByEmail(input.Email); err == nil {
-		return ErrEmailExisted
+		return wrapError(ErrEmailExisted, input.Email)
 	}
 
 	hashed, err := hashPassword(input.Password)
 	if err != nil {
-		return err
+		return wrapError(ErrUnknown, err)
 	}
 
 	_, err = s.dao.CreateUser(&store.UserRow{
@@ -155,9 +166,13 @@ func (s *registerService) Register(input *RegisterMutation) error {
 		IsActive:       false,
 	})
 
+	if err != nil {
+		return wrapError(ErrUnknown, err)
+	}
+
 	// TODO: send email invitation
 
-	return err
+	return nil
 }
 
 func NewRegisterService(finder FindCreater) *registerService {
@@ -171,4 +186,12 @@ func hashPassword(password string) (string, error) {
 	}
 
 	return string(hashed), nil
+}
+
+func wrapError(err error, detail interface{}) error {
+	if detail == nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return fmt.Errorf("%w: %v", err, detail)
 }
