@@ -113,13 +113,13 @@ func (s *Server) createAuthTokenParser() user.JWTParserService {
 }
 
 func (s *Server) createBasicSignInService() user.BasicSignInService {
-	return user.NewBasicSignInService(memory.NewUserStore(), s.config.JWTSecret, s.config.JWTExpiredHours)
+	return user.NewBasicSignInService(memory.UserStore, s.config.JWTSecret, s.config.JWTExpiredHours)
 }
 
 func (s *Server) createRegisterService() user.RegisterService {
-	return user.NewRegisterService(memory.NewUserStore())
+	return user.NewRegisterService(memory.UserStore)
 }
 
 func (s *Server) createUserGetProfileQuery() user.GetProfileQuery {
-	return user.NewQueryService(memory.NewUserStore())
+	return user.NewQueryService(memory.UserStore)
 }
