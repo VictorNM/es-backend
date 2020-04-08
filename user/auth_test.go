@@ -1,8 +1,11 @@
 package user
 
 import (
+	"errors"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/victornm/es-backend/store"
+	"log"
 	"testing"
 )
 
@@ -38,12 +41,14 @@ func TestBasicLogin(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			dao := newMockUserDao()
-			dao.seed(userInDB)
+			withoutValidate(func() {
+				dao := newMockUserDao()
+				dao.seed(userInDB)
 
-			s := NewBasicSignInService(dao, "#12345", 24)
-			_, err := s.BasicSignIn(test.Email, test.Password)
-			assert.Equal(t, test.WantedError, err)
+				s := NewBasicSignInService(dao, "#12345", 24)
+				_, err := s.BasicSignIn(test.Email, test.Password)
+				assertIsError(t, test.WantedError, err)
+			})
 		})
 	}
 }
@@ -76,6 +81,8 @@ func TestParseToken(t *testing.T) {
 		assert.Equal(t, u.ID, userAuth.UserID)
 	})
 }
+
+// ===== Register =====
 
 func TestRegister(t *testing.T) {
 	usersInDB := []*store.UserRow{
@@ -111,68 +118,115 @@ func TestRegister(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			// given
-			dao := newMockUserDao()
-			dao.seed(usersInDB)
-			s := NewRegisterService(dao)
+			withoutValidate(func() {
+				// given
+				dao := newMockUserDao()
+				dao.seed(usersInDB)
+				s := NewRegisterService(dao)
 
-			// when
-			err := s.Register(test.input)
+				// when
+				err := s.Register(test.input)
 
-			// then
-			assert.Equal(t, test.wantedErr, err)
+				// then
+				assertIsError(t, test.wantedErr, err)
+				log.Println(err)
+			})
 		})
 	}
 }
 
 func TestRegister_ValidateInput(t *testing.T) {
-	tests := map[string]*RegisterMutation{
-		"invalid email": {
-			Email:                "not an email",
-			Password:             "abcd1234",
-			PasswordConfirmation: "abcd1234",
-		},
+	t.Run("valid inputs", func(t *testing.T) {
+		tests := []*RegisterMutation{
+			{
+				Email:                "foo@bar.com",
+				Username:             "lucifer_silver",
+				Password:             "abcd1234",
+				PasswordConfirmation: "abcd1234",
+			},
+		}
 
-		"password length < 8": {
-			Email:                "foo@bar.com",
-			Password:             "123456",
-			PasswordConfirmation: "123456",
-		},
+		for i, input := range tests {
+			t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+				dao := newMockUserDao()
 
-		"password length > 32": {
-			Email:                "foo@bar.com",
-			Password:             "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
-			PasswordConfirmation: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
-		},
+				s := NewRegisterService(dao)
 
-		"password not contain any letter": {
-			Email:                "foo@bar.com",
-			Password:             "12345678",
-			PasswordConfirmation: "12345678",
-		},
+				assert.NoError(t, s.Register(input))
+			})
+		}
+	})
 
-		"password not contain any digit": {
-			Email:                "foo@bar.com",
-			Password:             "abcdqwer",
-			PasswordConfirmation: "abcdqwer",
-		},
+	t.Run("invalid inputs", func(t *testing.T) {
+		tests := map[string]*RegisterMutation{
+			"invalid email": {
+				Email:                "not an email",
+				Username:             "lucifer_silver",
+				Password:             "abcd1234",
+				PasswordConfirmation: "abcd1234",
+			},
 
-		"password confirmation not match": {
-			Email:                "foo@bar.com",
-			Password:             "abcd1234",
-			PasswordConfirmation: "4321zyxw",
-		},
-	}
+			"password length < 8": {
+				Email:                "foo@bar.com",
+				Username:             "lucifer_silver",
+				Password:             "123456",
+				PasswordConfirmation: "123456",
+			},
 
-	for name, input := range tests {
-		t.Run(name, func(t *testing.T) {
-			dao := newMockUserDao()
+			"password length > 32": {
+				Email:                "foo@bar.com",
+				Username:             "lucifer_silver",
+				Password:             "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+				PasswordConfirmation: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+			},
 
-			s := NewRegisterService(dao)
+			"password not contain any letter": {
+				Email:                "foo@bar.com",
+				Username:             "lucifer_silver",
+				Password:             "12345678",
+				PasswordConfirmation: "12345678",
+			},
 
-			err := s.Register(input)
+			"password not contain any digit": {
+				Email:                "foo@bar.com",
+				Username:             "lucifer_silver",
+				Password:             "abcdqwer",
+				PasswordConfirmation: "abcdqwer",
+			},
 
-			assert.Equal(t, ErrInvalidInput, err)
-		})
+			"password confirmation not match": {
+				Email:                "foo@bar.com",
+				Username:             "lucifer_silver",
+				Password:             "abcd1234",
+				PasswordConfirmation: "4321zyxw",
+			},
+
+			"username < 8": {
+				Email:                "not an email",
+				Username:             "silver",
+				Password:             "abcd1234",
+				PasswordConfirmation: "abcd1234",
+			},
+		}
+
+		for name, input := range tests {
+			t.Run(name, func(t *testing.T) {
+				dao := newMockUserDao()
+
+				s := NewRegisterService(dao)
+
+				err := s.Register(input)
+
+				assertIsError(t, ErrInvalidInput, err)
+
+				log.Println(err)
+			})
+		}
+	})
+}
+
+func assertIsError(t *testing.T, wanted, got error) {
+	if !errors.Is(got, wanted) {
+		t.Errorf("Error %v is not an %v", got, wanted)
 	}
 }

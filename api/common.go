@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/victornm/es-backend/user"
 	"log"
@@ -8,6 +9,7 @@ import (
 
 type Error struct {
 	Message string `json:"message"`
+	Detail  string `json:"detail"`
 }
 
 type BaseResponse struct {
@@ -18,7 +20,22 @@ type BaseResponse struct {
 func reject(c *gin.Context, code int, errs ...error) {
 	errList := make([]Error, len(errs))
 	for i, err := range errs {
-		errList[i] = Error{Message: err.Error()}
+		if err == nil {
+			continue
+		}
+
+		if unwrap := errors.Unwrap(err); unwrap != nil {
+			errList[i] = Error{
+				Message: unwrap.Error(),
+				Detail:  err.Error(),
+			}
+			continue
+		}
+
+		errList[i] = Error{
+			Message: err.Error(),
+			Detail:  err.Error(),
+		}
 	}
 
 	c.JSON(code, &BaseResponse{

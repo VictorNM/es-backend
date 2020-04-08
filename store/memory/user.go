@@ -5,7 +5,14 @@ import (
 	"github.com/victornm/es-backend/store"
 	"golang.org/x/crypto/bcrypt"
 	"log"
+	"sync"
 )
+
+var UserStore *userStore
+
+func init() {
+	UserStore = newUserStore()
+}
 
 var fixedUsers = []*store.UserRow{
 	{
@@ -32,11 +39,15 @@ func genPassword(password string) string {
 }
 
 type userStore struct {
+	mu sync.RWMutex
 	currentID int
 	users     []*store.UserRow
 }
 
 func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
+	dao.mu.Lock()
+	defer dao.mu.Unlock()
+
 	for _, u := range dao.users {
 		if u.Email == email {
 			return u, nil
@@ -46,6 +57,9 @@ func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
 }
 
 func (dao *userStore) FindUserByID(id int) (*store.UserRow, error) {
+	dao.mu.Lock()
+	defer dao.mu.Unlock()
+
 	for _, u := range dao.users {
 		if u.ID == id {
 			return u, nil
@@ -55,6 +69,9 @@ func (dao *userStore) FindUserByID(id int) (*store.UserRow, error) {
 }
 
 func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
+	dao.mu.Lock()
+	defer dao.mu.Unlock()
+
 	for _, row := range dao.users {
 		if u.Email == row.Email {
 			return 0, errors.New("email existed")
@@ -68,7 +85,7 @@ func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
 	return u.ID, nil
 }
 
-func NewUserStore() *userStore {
+func newUserStore() *userStore {
 	s := &userStore{currentID: 0}
 	for _, u := range fixedUsers {
 		_, err := s.CreateUser(u)

@@ -11,6 +11,8 @@ definitions:
     type: object
   api.Error:
     properties:
+      detail:
+        type: string
       message:
         type: string
     type: object
@@ -18,19 +20,6 @@ definitions:
     properties:
       token:
         type: string
-    type: object
-  auth.UserRegisterMutation:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-      password_confirmation:
-        type: string
-    required:
-    - email
-    - password
-    - password_confirmation
     type: object
   user.ProfileDTO:
     properties:
@@ -44,6 +33,26 @@ definitions:
         type: string
       phone:
         type: string
+    type: object
+  user.RegisterMutation:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      password_confirmation:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - password_confirmation
+    - username
     type: object
 host: localhost:8080
 info:
@@ -61,7 +70,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: get profile successfully
+          description: Get profile successfully
           schema:
             allOf:
             - $ref: '#/definitions/api.BaseResponse'
@@ -76,21 +85,21 @@ paths:
     post:
       description: Sign in using email and password
       parameters:
-      - description: Add account
+      - description: Register new user
         in: body
         name: user
         required: true
         schema:
-          $ref: '#/definitions/auth.UserRegisterMutation'
+          $ref: '#/definitions/user.RegisterMutation'
       produces:
       - application/json
       responses:
-        "200":
-          description: sign in successfully
+        "201":
+          description: Register successfully
           schema:
             $ref: '#/definitions/api.BaseResponse'
         "400":
-          description: bad request
+          description: Bad request
           schema:
             allOf:
             - $ref: '#/definitions/api.BaseResponse'
@@ -110,7 +119,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: sign in successfully
+          description: Sign in successfully
           schema:
             allOf:
             - $ref: '#/definitions/api.BaseResponse'
@@ -119,7 +128,7 @@ paths:
                   $ref: '#/definitions/api.authToken'
               type: object
         "401":
-          description: not authenticated
+          description: Not authenticated
           schema:
             allOf:
             - $ref: '#/definitions/api.BaseResponse'

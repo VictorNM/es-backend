@@ -6,11 +6,17 @@ import (
 	"unicode"
 )
 
-var validate = validator.New()
+// validate is the central place to validate all input, using lib github.com/go-playground/validator tag
+// in unit test, this function can be disable by replace with validate = func(o interface{}) error {return nil}
+var validate = func(o interface{}) error {
+	return v.Struct(o)
+}
+
+var v = validator.New()
 
 // register all custom validation logic here
 func init() {
-	err := validate.RegisterValidation("password", func(fl validator.FieldLevel) bool {
+	err := v.RegisterValidation("password", func(fl validator.FieldLevel) bool {
 		return validatePassword(fl.Field().String())
 	})
 
