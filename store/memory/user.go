@@ -7,6 +7,12 @@ import (
 	"log"
 )
 
+var UserStore *userStore
+
+func init() {
+	UserStore = newUserStore()
+}
+
 var fixedUsers = []*store.UserRow{
 	{
 		Email:          "admin1@es.com",
@@ -68,7 +74,7 @@ func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
 	return u.ID, nil
 }
 
-func NewUserStore() *userStore {
+func newUserStore() *userStore {
 	s := &userStore{currentID: 0}
 	for _, u := range fixedUsers {
 		_, err := s.CreateUser(u)
