@@ -4,8 +4,6 @@ import (
 	"reflect"
 )
 
-var global *Bus
-
 type Bus struct {
 	eventMap map[string][]chan<- interface{}
 }
@@ -28,12 +26,4 @@ func NewBus() *Bus {
 	return &Bus{
 		eventMap: make(map[string][]chan<- interface{}),
 	}
-}
-
-func GetBus() *Bus {
-	if global == nil {
-		global = NewBus()
-	}
-
-	return global
 }
