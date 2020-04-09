@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"github.com/victornm/es-backend/event"
+	"github.com/stretchr/testify/require"
 	"github.com/victornm/es-backend/store"
 	"log"
 	"sync"
@@ -151,7 +151,7 @@ func TestRegister(t *testing.T) {
 				// given
 				dao := newMockUserDao()
 				dao.seed(usersInDB)
-				s := NewRegisterService(dao, event.GetBus())
+				s := NewRegisterService(dao, newMockSender(dao))
 
 				// when
 				err := s.Register(test.input)
@@ -163,28 +163,12 @@ func TestRegister(t *testing.T) {
 	}
 }
 
-func TestRegister_PublishEvent(t *testing.T) {
+func TestRegister_SendActivationMail(t *testing.T) {
 	withoutValidate(func() {
 		// given
 		dao := newMockUserDao()
-		bus := event.NewBus()
-		s := NewRegisterService(dao, bus)
-		var userRegisteredEvent Registered
-
-		c := make(chan interface{})
-		bus.Subscribe(Registered{}, c)
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-
-		go func() {
-			for {
-				select {
-				case e := <-c:
-					userRegisteredEvent = e.(Registered)
-					wg.Done()
-				}
-			}
-		}()
+		sender := newMockSender(dao)
+		s := NewRegisterService(dao, sender)
 
 		// when
 		err := s.Register(&RegisterMutation{
@@ -193,15 +177,42 @@ func TestRegister_PublishEvent(t *testing.T) {
 			Password:             "1234abcd",
 			PasswordConfirmation: "1234abcd",
 		})
-		wg.Wait()
+		sender.wg.Wait()
 
-		// Then
-		assert.NoError(t, err)
-		assert.NotEmpty(t, userRegisteredEvent.UserID)
-
-		u, _ := dao.FindUserByID(userRegisteredEvent.UserID)
-		assert.Equal(t, u.Email, "newEmail@gmail.com")
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "newEmail@gmail.com", sender.email)
 	})
+}
+
+type mockSender struct {
+	dao Finder
+
+	email         string
+	activationKey string
+
+	wg *sync.WaitGroup
+}
+
+func (sender *mockSender) SendActivationEmail(userID int) {
+	defer sender.wg.Done()
+
+	u, err := sender.dao.FindUserByID(userID)
+	if err != nil {
+		return
+	}
+
+	sender.email = u.Email
+	sender.activationKey = u.ActivationKey
+
+	return
+}
+
+func newMockSender(dao Finder) *mockSender {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	return &mockSender{dao: dao, wg: wg}
 }
 
 func TestRegister_ValidateInput(t *testing.T) {
@@ -220,7 +231,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 			t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
 				dao := newMockUserDao()
 
-				s := NewRegisterService(dao, event.GetBus())
+				s := NewRegisterService(dao, newMockSender(dao))
 
 				assert.NoError(t, s.Register(input))
 			})
@@ -290,7 +301,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				dao := newMockUserDao()
 
-				s := NewRegisterService(dao, event.GetBus())
+				s := NewRegisterService(dao, newMockSender(dao))
 
 				err := s.Register(input)
 

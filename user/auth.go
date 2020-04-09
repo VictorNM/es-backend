@@ -149,16 +149,8 @@ type RegisterMutation struct {
 }
 
 type registerService struct {
-	dao       FindCreator
-	publisher Publisher
-}
-
-type Publisher interface {
-	Publish(e interface{})
-}
-
-type Registered struct {
-	UserID int
+	dao    FindCreator
+	sender ActivationEmailSender
 }
 
 func (s *registerService) Register(input *RegisterMutation) error {
@@ -191,16 +183,21 @@ func (s *registerService) Register(input *RegisterMutation) error {
 		return wrapError(ErrUnknown, err)
 	}
 
-	// TODO: send email invitation
-	go s.publisher.Publish(Registered{UserID: id})
+	time.AfterFunc(time.Millisecond, func() {
+		s.sender.SendActivationEmail(id)
+	})
 
 	return nil
 }
 
-func NewRegisterService(dao FindCreator, publisher Publisher) *registerService {
+type ActivationEmailSender interface {
+	SendActivationEmail(userID int)
+}
+
+func NewRegisterService(dao FindCreator, sender ActivationEmailSender) *registerService {
 	return &registerService{
-		dao:       dao,
-		publisher: publisher,
+		dao:    dao,
+		sender: sender,
 	}
 }
 

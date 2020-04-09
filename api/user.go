@@ -1,7 +1,6 @@
 package api
 
 import (
-	event2 "github.com/victornm/es-backend/event"
 	"github.com/victornm/es-backend/user"
 	"net/http"
 	"strings"
@@ -118,7 +117,7 @@ func (s *Server) createBasicSignInService() user.BasicSignInService {
 }
 
 func (s *Server) createRegisterService() user.RegisterService {
-	return user.NewRegisterService(memory.UserStore, event2.GetBus())
+	return user.NewRegisterService(memory.UserStore, user.NewConsoleSender(memory.UserStore, s.config.FrontendBaseURL))
 }
 
 func (s *Server) createUserGetProfileQuery() user.GetProfileQuery {

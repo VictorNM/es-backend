@@ -1,5 +1,7 @@
 # E-SHARING
 
+![Go](https://github.com/VictorNM/es-backend/workflows/Go/badge.svg?branch=develop)
+
 [//]: <> (## Getting Started)
 
 [//]: <> (### Prerequisites)
