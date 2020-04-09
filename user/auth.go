@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/victornm/es-backend/store"
 	"golang.org/x/crypto/bcrypt"
 	"time"
@@ -114,7 +115,7 @@ func (s *jwtParserService) ParseToken(tokenString string) (*AuthDTO, error) {
 	})
 
 	if err != nil || !token.Valid {
-		return nil, ErrNotAuthenticated
+		return nil, wrapError(ErrNotAuthenticated, err)
 	}
 
 	return claims.AuthDTO, nil
@@ -148,7 +149,16 @@ type RegisterMutation struct {
 }
 
 type registerService struct {
-	dao FindCreator
+	dao       FindCreator
+	publisher Publisher
+}
+
+type Publisher interface {
+	Publish(e interface{})
+}
+
+type Registered struct {
+	UserID int
 }
 
 func (s *registerService) Register(input *RegisterMutation) error {
@@ -169,23 +179,29 @@ func (s *registerService) Register(input *RegisterMutation) error {
 		return wrapError(ErrUnknown, err)
 	}
 
-	_, err = s.dao.CreateUser(&store.UserRow{
+	u := &store.UserRow{
 		Email:          input.Email,
 		HashedPassword: hashed,
 		IsActive:       false,
-	})
+		ActivationKey:  uuid.New().String(),
+	}
+	id, err := s.dao.CreateUser(u)
 
 	if err != nil {
 		return wrapError(ErrUnknown, err)
 	}
 
 	// TODO: send email invitation
+	go s.publisher.Publish(Registered{UserID: id})
 
 	return nil
 }
 
-func NewRegisterService(finder FindCreator) *registerService {
-	return &registerService{dao: finder}
+func NewRegisterService(dao FindCreator, publisher Publisher) *registerService {
+	return &registerService{
+		dao:       dao,
+		publisher: publisher,
+	}
 }
 
 func hashPassword(password string) (string, error) {

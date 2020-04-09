@@ -19,6 +19,7 @@ type UserRow struct {
 	UpdatedAt      time.Time
 	IsActive       bool
 	IsSuperAdmin   bool
+	ActivationKey  string
 }
 
 type CourseRow struct {
