@@ -12,9 +12,11 @@ import (
 var (
 	// Authentication error
 	ErrNotAuthenticated = errors.New("not authenticated")
+	ErrNotActivated     = errors.New("not activated")
 
 	// Registration error
-	ErrEmailExisted = errors.New("email already existed")
+	ErrEmailExisted    = errors.New("email already existed")
+	ErrUsernameExisted = errors.New("username already existed")
 
 	// Common error
 	ErrInvalidInput = errors.New("invalid input")
@@ -55,24 +57,28 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 	}
 
 	if err := validate(input); err != nil {
-		return "", ErrInvalidInput
+		return "", wrapError(ErrInvalidInput, err)
 	}
 
 	u, err := s.userFinder.FindUserByEmail(email)
 	if err != nil {
-		return "", ErrNotAuthenticated
+		return "", wrapError(ErrNotAuthenticated, "email")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(u.HashedPassword), []byte(password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
-		return "", ErrNotAuthenticated
+		return "", wrapError(ErrNotAuthenticated, err)
 	}
 
-	// unknown error
 	if err != nil {
-		return "", ErrNotAuthenticated
+		return "", wrapError(ErrNotAuthenticated, err)
 	}
 
+	if !u.IsActive {
+		return "", wrapError(ErrNotActivated)
+	}
+
+	// sign successfully
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(s.expired).Unix(),
@@ -84,7 +90,7 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 
 	tokenString, err := token.SignedString([]byte(s.secret))
 	if err != nil {
-		return "", ErrNotAuthenticated
+		return "", wrapError(ErrUnknown, err)
 	}
 
 	return tokenString, nil
@@ -135,15 +141,14 @@ type RegisterService interface {
 
 type RegisterMutation struct {
 	Email                string `json:"email" validate:"required,email"`
-	Username             string `json:"username" validate:"required,min=8,max=255"`
+	Username             string `json:"username" validate:"required,min=2,max=30"`
 	Password             string `json:"password" validate:"required,password"`
 	PasswordConfirmation string `json:"password_confirmation" validate:"required,eqfield=Password"`
-	FirstName            string `json:"first_name"`
-	LastName             string `json:"last_name"`
+	FullName             string `json:"full_name" validate:"required"`
 }
 
 type registerService struct {
-	dao FindCreater
+	dao FindCreator
 }
 
 func (s *registerService) Register(input *RegisterMutation) error {
@@ -153,6 +158,10 @@ func (s *registerService) Register(input *RegisterMutation) error {
 
 	if _, err := s.dao.FindUserByEmail(input.Email); err == nil {
 		return wrapError(ErrEmailExisted, input.Email)
+	}
+
+	if _, err := s.dao.FindUserByUsername(input.Username); err == nil {
+		return wrapError(ErrUsernameExisted, input.Username)
 	}
 
 	hashed, err := hashPassword(input.Password)
@@ -175,7 +184,7 @@ func (s *registerService) Register(input *RegisterMutation) error {
 	return nil
 }
 
-func NewRegisterService(finder FindCreater) *registerService {
+func NewRegisterService(finder FindCreator) *registerService {
 	return &registerService{dao: finder}
 }
 
@@ -188,10 +197,23 @@ func hashPassword(password string) (string, error) {
 	return string(hashed), nil
 }
 
-func wrapError(err error, detail interface{}) error {
-	if detail == nil {
-		return fmt.Errorf("%w", err)
-	}
+func wrapError(err error, msgAndArgs ...interface{}) error {
+	return fmt.Errorf("%w: %s", err, messageFromMsgAndArgs(msgAndArgs))
+}
 
-	return fmt.Errorf("%w: %v", err, detail)
+func messageFromMsgAndArgs(msgAndArgs ...interface{}) string {
+	if len(msgAndArgs) == 0 {
+		return ""
+	}
+	if len(msgAndArgs) == 1 {
+		msg := msgAndArgs[0]
+		if msgAsStr, ok := msg.(string); ok {
+			return msgAsStr
+		}
+		return fmt.Sprintf("%+v", msg)
+	}
+	if len(msgAndArgs) > 1 {
+		return fmt.Sprintf(msgAndArgs[0].(string), msgAndArgs[1:]...)
+	}
+	return ""
 }

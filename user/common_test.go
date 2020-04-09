@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/victornm/es-backend/store"
 	"log"
+	"strings"
 )
 
 type mockUserDAO struct {
@@ -13,7 +14,16 @@ type mockUserDAO struct {
 
 func (dao *mockUserDAO) FindUserByEmail(email string) (*store.UserRow, error) {
 	for _, u := range dao.users {
-		if u.Email == email {
+		if strings.ToLower(u.Email) == strings.ToLower(email) {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func (dao *mockUserDAO) FindUserByUsername(username string) (*store.UserRow, error) {
+	for _, u := range dao.users {
+		if strings.ToLower(u.Username) == strings.ToLower(username) {
 			return u, nil
 		}
 	}

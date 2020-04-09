@@ -14,13 +14,19 @@ func TestBasicLogin(t *testing.T) {
 		{
 			Email:          "victornm@es.com",
 			HashedPassword: mustHashPassword("1234abcd"),
+			IsActive:       true,
+		},
+		{
+			Email:          "nguyenmauvinh@es.com",
+			HashedPassword: mustHashPassword("1234abcd"),
+			IsActive:       false,
 		},
 	}
 
 	tests := map[string]struct {
-		Email       string
-		Password    string
-		WantedError error
+		email     string
+		password  string
+		wantedErr error
 	}{
 		"happy login": {
 			"victornm@es.com",
@@ -37,6 +43,11 @@ func TestBasicLogin(t *testing.T) {
 			"4321bcda",
 			ErrNotAuthenticated,
 		},
+		"user not activated": {
+			"nguyenmauvinh@es.com",
+			"1234abcd",
+			ErrNotActivated,
+		},
 	}
 
 	for name, test := range tests {
@@ -46,8 +57,10 @@ func TestBasicLogin(t *testing.T) {
 				dao.seed(userInDB)
 
 				s := NewBasicSignInService(dao, "#12345", 24)
-				_, err := s.BasicSignIn(test.Email, test.Password)
-				assertIsError(t, test.WantedError, err)
+				_, err := s.BasicSignIn(test.email, test.password)
+				assertIsError(t, test.wantedErr, err)
+
+				log.Println(err)
 			})
 		})
 	}
@@ -58,6 +71,7 @@ func TestParseToken(t *testing.T) {
 		{
 			Email:          "victornm@es.com",
 			HashedPassword: mustHashPassword("1234abcd"),
+			IsActive:       true,
 		},
 	}
 
@@ -88,6 +102,7 @@ func TestRegister(t *testing.T) {
 	usersInDB := []*store.UserRow{
 		{
 			Email:          "victornm@es.com",
+			Username:       "victorNM",
 			HashedPassword: mustHashPassword("1234abcd"),
 		},
 	}
@@ -100,6 +115,7 @@ func TestRegister(t *testing.T) {
 		"happy case": {
 			input: &RegisterMutation{
 				Email:                "newEmail@gmail.com",
+				Username:             "newUser",
 				Password:             "1234abcd",
 				PasswordConfirmation: "1234abcd",
 			},
@@ -109,10 +125,21 @@ func TestRegister(t *testing.T) {
 		"existed email": {
 			input: &RegisterMutation{
 				Email:                "victornm@es.com",
+				Username:             "newUser",
 				Password:             "1234abcd",
 				PasswordConfirmation: "1234abcd",
 			},
 			wantedErr: ErrEmailExisted,
+		},
+
+		"existed username": {
+			input: &RegisterMutation{
+				Email:                "newEmail@gmail.com",
+				Username:             "victornm",
+				Password:             "1234abcd",
+				PasswordConfirmation: "1234abcd",
+			},
+			wantedErr: ErrUsernameExisted,
 		},
 	}
 
@@ -129,7 +156,6 @@ func TestRegister(t *testing.T) {
 
 				// then
 				assertIsError(t, test.wantedErr, err)
-				log.Println(err)
 			})
 		})
 	}
@@ -143,6 +169,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 				Username:             "lucifer_silver",
 				Password:             "abcd1234",
 				PasswordConfirmation: "abcd1234",
+				FullName:             "Nguyen Mau Vinh",
 			},
 		}
 
@@ -164,6 +191,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 				Username:             "lucifer_silver",
 				Password:             "abcd1234",
 				PasswordConfirmation: "abcd1234",
+				FullName:             "Nguyen Mau Vinh",
 			},
 
 			"password length < 8": {
@@ -171,13 +199,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 				Username:             "lucifer_silver",
 				Password:             "123456",
 				PasswordConfirmation: "123456",
-			},
-
-			"password length > 32": {
-				Email:                "foo@bar.com",
-				Username:             "lucifer_silver",
-				Password:             "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
-				PasswordConfirmation: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+				FullName:             "Nguyen Mau Vinh",
 			},
 
 			"password not contain any letter": {
@@ -185,6 +207,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 				Username:             "lucifer_silver",
 				Password:             "12345678",
 				PasswordConfirmation: "12345678",
+				FullName:             "Nguyen Mau Vinh",
 			},
 
 			"password not contain any digit": {
@@ -192,6 +215,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 				Username:             "lucifer_silver",
 				Password:             "abcdqwer",
 				PasswordConfirmation: "abcdqwer",
+				FullName:             "Nguyen Mau Vinh",
 			},
 
 			"password confirmation not match": {
@@ -199,13 +223,23 @@ func TestRegister_ValidateInput(t *testing.T) {
 				Username:             "lucifer_silver",
 				Password:             "abcd1234",
 				PasswordConfirmation: "4321zyxw",
+				FullName:             "Nguyen Mau Vinh",
 			},
 
-			"username < 8": {
+			"username < 2": {
 				Email:                "not an email",
-				Username:             "silver",
+				Username:             "s",
 				Password:             "abcd1234",
 				PasswordConfirmation: "abcd1234",
+				FullName:             "Nguyen Mau Vinh",
+			},
+
+			"empty full name": {
+				Email:                "not an email",
+				Username:             "lucifer_silver",
+				Password:             "abcd1234",
+				PasswordConfirmation: "abcd1234",
+				FullName:             "",
 			},
 		}
 
@@ -218,8 +252,6 @@ func TestRegister_ValidateInput(t *testing.T) {
 				err := s.Register(input)
 
 				assertIsError(t, ErrInvalidInput, err)
-
-				log.Println(err)
 			})
 		}
 	})
