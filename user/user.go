@@ -18,11 +18,15 @@ type GetProfileQuery interface {
 }
 
 type ProfileDTO struct {
-	ID        int    `json:"id"`
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Phone     string `json:"phone"`
+	ID          int    `json:"id"`
+	Email       string `json:"email"`
+	Username    string `json:"username"`
+	FullName    string `json:"full_name"`
+	Phone       string `json:"phone"`
+	YearOfBirth int    `json:"year_of_birth"`
+	Country     string `json:"country"`
+	Gender      string `json:"gender"`
+	Language    string `json:"language"`
 }
 
 func (s *queryService) GetProfile(id int) (*ProfileDTO, error) {
@@ -32,11 +36,14 @@ func (s *queryService) GetProfile(id int) (*ProfileDTO, error) {
 	}
 
 	return &ProfileDTO{
-		ID:        u.ID,
-		Email:     u.Email,
-		FirstName: u.FirstName,
-		LastName:  u.LastName,
-		Phone:     u.Phone,
+		ID:          u.ID,
+		Email:       u.Email,
+		FullName:    u.FullName,
+		Phone:       u.Phone,
+		YearOfBirth: u.YearOfBirth,
+		Country:     u.Country,
+		Gender:      u.Gender,
+		Language:    u.Language,
 	}, nil
 }
 

@@ -1,17 +1,24 @@
 package store
 
-import "time"
+import (
+	"time"
+)
 
 type UserRow struct {
 	ID             int
 	Email          string
+	Username       string
 	HashedPassword string
-	FirstName      string
-	LastName       string
+	FullName       string
 	Phone          string
+	YearOfBirth    int
+	Country        string
+	Gender         string
+	Language       string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	IsActive       bool
+	IsSuperAdmin   bool
 }
 
 type CourseRow struct {

@@ -5,7 +5,9 @@ import (
 	"github.com/victornm/es-backend/store"
 	"golang.org/x/crypto/bcrypt"
 	"log"
+	"strings"
 	"sync"
+	"time"
 )
 
 var UserStore *userStore
@@ -16,16 +18,21 @@ func init() {
 
 var fixedUsers = []*store.UserRow{
 	{
-		Email:          "admin1@es.com",
+		Email:          "admin@es.com",
+		Username:       "admin",
 		HashedPassword: genPassword("admin"),
+		IsSuperAdmin:   true,
+		IsActive:       true,
 	},
 	{
 		Email:          "admin2@es.com",
 		HashedPassword: genPassword("admin"),
+		IsActive:       true,
 	},
 	{
 		Email:          "admin3@es.com",
 		HashedPassword: genPassword("admin"),
+		IsActive:       true,
 	},
 }
 
@@ -39,7 +46,7 @@ func genPassword(password string) string {
 }
 
 type userStore struct {
-	mu sync.RWMutex
+	mu        sync.RWMutex
 	currentID int
 	users     []*store.UserRow
 }
@@ -49,7 +56,19 @@ func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
 	defer dao.mu.Unlock()
 
 	for _, u := range dao.users {
-		if u.Email == email {
+		if strings.ToLower(u.Email) == strings.ToLower(email) {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func (dao *userStore) FindUserByUsername(username string) (*store.UserRow, error) {
+	dao.mu.Lock()
+	defer dao.mu.Unlock()
+
+	for _, u := range dao.users {
+		if strings.ToLower(u.Username) == strings.ToLower(username) {
 			return u, nil
 		}
 	}
@@ -80,6 +99,7 @@ func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
 
 	dao.currentID++
 	u.ID = dao.currentID
+	u.CreatedAt = time.Now()
 	dao.users = append(dao.users, u)
 
 	return u.ID, nil
