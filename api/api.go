@@ -11,7 +11,7 @@ import (
 )
 
 type Server struct {
-	router http.Handler
+	router *gin.Engine
 
 	config *ServerConfig
 }
@@ -33,12 +33,22 @@ func NewServer(config *ServerConfig) *Server {
 // @in header
 // @name Authorization
 func (s *Server) Init() {
-	router := gin.Default()
-	router.Use(cors.Default()) // TODO: change this setting later
+	s.router = gin.Default()
 
-	rootAPI := router.Group("/api")
+	s.initRouter()
+}
 
-	// user
+func (s *Server) initRouter() {
+	s.router.Use(cors.Default()) // TODO: change this setting later
+
+	rootAPI := s.router.Group("/api")
+
+	// testing purpose: ping => pong
+	rootAPI.GET("/ping", func(c *gin.Context) {
+		c.String(200, "PONG")
+	})
+
+	// ===== user =====
 	userGroup := rootAPI.Group("/users")
 	{
 		// not auth handlers
@@ -50,8 +60,8 @@ func (s *Server) Init() {
 		userGroup.GET("/profile", s.createAuthMiddleware(), s.createGetProfileHandler())
 	}
 
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	s.router = router
+	// swagger API documentation
+	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +69,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type ServerConfig struct {
+	FrontendBaseURL string // the domain where the frontend live
+
 	JWTSecret       string
 	JWTExpiredHours int
 }

@@ -11,6 +11,8 @@ import (
 
 func main() {
 	config := &api.ServerConfig{
+		FrontendBaseURL: os.Getenv("FRONT_END_BASE_URL"),
+
 		JWTSecret:       os.Getenv("SECRET"),
 		JWTExpiredHours: envAsInt("TOKEN_EXPIRED_HOURS"),
 	}

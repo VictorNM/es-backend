@@ -26,7 +26,7 @@ func init() {
 }
 
 func validatePassword(password string) bool {
-	if len(password) < 8 || len(password) > 32 {
+	if len(password) < 8 {
 		return false
 	}
 

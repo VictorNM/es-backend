@@ -9,9 +9,9 @@ require (
 	github.com/gin-gonic/gin v1.6.2
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/go-playground/validator/v10 v10.2.0
+	github.com/google/uuid v1.1.1
 	github.com/stretchr/testify v1.5.1
 	github.com/swaggo/gin-swagger v1.2.0
 	github.com/swaggo/swag v1.5.1
 	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
-	gopkg.in/go-playground/validator.v9 v9.29.1
 )

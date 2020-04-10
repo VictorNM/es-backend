@@ -117,7 +117,7 @@ func (s *Server) createBasicSignInService() user.BasicSignInService {
 }
 
 func (s *Server) createRegisterService() user.RegisterService {
-	return user.NewRegisterService(memory.UserStore)
+	return user.NewRegisterService(memory.UserStore, user.NewConsoleSender(memory.UserStore, s.config.FrontendBaseURL))
 }
 
 func (s *Server) createUserGetProfileQuery() user.GetProfileQuery {
