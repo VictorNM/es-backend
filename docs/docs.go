@@ -203,20 +203,32 @@ var doc = `{
         "user.ProfileDTO": {
             "type": "object",
             "properties": {
+                "country": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
-                "first_name": {
+                "full_name": {
+                    "type": "string"
+                },
+                "gender": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "last_name": {
+                "language": {
                     "type": "string"
                 },
                 "phone": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "year_of_birth": {
+                    "type": "integer"
                 }
             }
         },
@@ -224,6 +236,7 @@ var doc = `{
             "type": "object",
             "required": [
                 "email",
+                "full_name",
                 "password",
                 "password_confirmation",
                 "username"
@@ -232,10 +245,7 @@ var doc = `{
                 "email": {
                     "type": "string"
                 },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
+                "full_name": {
                     "type": "string"
                 },
                 "password": {
