@@ -44,9 +44,7 @@ func (s *Server) initRouter() {
 	rootAPI := s.router.Group("/api")
 
 	// testing purpose: ping => pong
-	rootAPI.GET("/ping", func(c *gin.Context) {
-		c.String(200, "PONG")
-	})
+	rootAPI.GET("/ping", createPingHandler())
 
 	// ===== user =====
 	userGroup := rootAPI.Group("/users")
@@ -73,4 +71,16 @@ type ServerConfig struct {
 
 	JWTSecret       string
 	JWTExpiredHours int
+}
+
+// @Summary PING PONG
+// @Description For testing
+// @Tags ping
+// @Produce json
+// @Success 200 {object} api.BaseResponse "PING PONG"
+// @Router /api/ping [get]
+func createPingHandler() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		response(c, 200, "PONG")
+	}
 }
