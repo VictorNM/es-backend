@@ -28,6 +28,26 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/ping": {
+            "get": {
+                "description": "For testing",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ping"
+                ],
+                "summary": "PING PONG",
+                "responses": {
+                    "200": {
+                        "description": "PING PONG",
+                        "schema": {
+                            "$ref": "#/definitions/api.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users/profile": {
             "get": {
                 "description": "Get profile by user_id in token,",
@@ -62,14 +82,14 @@ var doc = `{
         },
         "/users/register": {
             "post": {
-                "description": "Sign in using email and password",
+                "description": "Register using email and password",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "user"
                 ],
-                "summary": "Basic sign in using email, password",
+                "summary": "Register using email and password",
                 "parameters": [
                     {
                         "description": "Register new user",
@@ -203,20 +223,32 @@ var doc = `{
         "user.ProfileDTO": {
             "type": "object",
             "properties": {
+                "country": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
-                "first_name": {
+                "full_name": {
+                    "type": "string"
+                },
+                "gender": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "last_name": {
+                "language": {
                     "type": "string"
                 },
                 "phone": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "year_of_birth": {
+                    "type": "integer"
                 }
             }
         },
@@ -224,6 +256,7 @@ var doc = `{
             "type": "object",
             "required": [
                 "email",
+                "full_name",
                 "password",
                 "password_confirmation",
                 "username"
@@ -232,10 +265,7 @@ var doc = `{
                 "email": {
                     "type": "string"
                 },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
+                "full_name": {
                     "type": "string"
                 },
                 "password": {

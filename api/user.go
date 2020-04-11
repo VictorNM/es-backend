@@ -40,8 +40,8 @@ type authToken struct {
 	Token string `json:"token"`
 }
 
-// @Summary Basic sign in using email, password
-// @Description Sign in using email and password
+// @Summary Register using email and password
+// @Description Register using email and password
 // @Tags user
 // @Produce json
 // @Param user body user.RegisterMutation true "Register new user"
