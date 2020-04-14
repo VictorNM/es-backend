@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-playground/assert/v2"
 	"github.com/victornm/es-backend/store"
@@ -42,4 +43,47 @@ func TestGetProfile(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Mocks
+
+type mockUserDAO struct {
+	currentID int
+	users     []*store.UserRow
+}
+
+func (dao *mockUserDAO) FindUserByID(id int) (*store.UserRow, error) {
+	for _, u := range dao.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func newMockUserDao() *mockUserDAO {
+	return &mockUserDAO{currentID: 0}
+}
+
+func (dao *mockUserDAO) seed(users []*store.UserRow) {
+	for _, u := range users {
+		_, err := dao.CreateUser(u)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (dao *mockUserDAO) CreateUser(u *store.UserRow) (int, error) {
+	for _, row := range dao.users {
+		if u.Email == row.Email || u.Username == row.Username {
+			return 0, errors.New("user existed")
+		}
+	}
+
+	dao.currentID++
+	u.ID = dao.currentID
+	dao.users = append(dao.users, u)
+
+	return u.ID, nil
 }

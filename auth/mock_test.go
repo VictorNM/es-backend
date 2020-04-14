@@ -1,4 +1,4 @@
-package user
+package auth
 
 import (
 	"errors"
@@ -41,7 +41,7 @@ func (dao *mockUserDAO) FindUserByID(id int) (*store.UserRow, error) {
 
 func (dao *mockUserDAO) CreateUser(u *store.UserRow) (int, error) {
 	for _, row := range dao.users {
-		if u.Email == row.Email {
+		if u.Email == row.Email || u.Username == row.Username {
 			return 0, ErrEmailExisted
 		}
 	}
