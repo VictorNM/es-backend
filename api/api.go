@@ -39,7 +39,10 @@ func (s *Server) Init() {
 }
 
 func (s *Server) initRouter() {
-	s.router.Use(cors.Default()) // TODO: change this setting later
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowHeaders = append(corsConfig.AllowHeaders, "Authorization")
+	corsConfig.AllowAllOrigins = true
+	s.router.Use(cors.New(corsConfig)) // TODO: change this setting later
 
 	rootAPI := s.router.Group("/api")
 
