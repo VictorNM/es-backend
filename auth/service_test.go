@@ -1,4 +1,4 @@
-package user
+package auth
 
 import (
 	"errors"
@@ -15,11 +15,13 @@ func TestBasicLogin(t *testing.T) {
 	userInDB := []*store.UserRow{
 		{
 			Email:          "victornm@es.com",
+			Username:       "victornm@es.com",
 			HashedPassword: mustHashPassword("1234abcd"),
 			IsActive:       true,
 		},
 		{
 			Email:          "nguyenmauvinh@es.com",
+			Username:       "nguyenmauvinh@es.com",
 			HashedPassword: mustHashPassword("1234abcd"),
 			IsActive:       false,
 		},
@@ -58,7 +60,7 @@ func TestBasicLogin(t *testing.T) {
 				dao := newMockUserDao()
 				dao.seed(userInDB)
 
-				s := NewBasicSignInService(dao, "#12345", 24)
+				s := NewBasicSignInService(NewRepository(dao), "#12345", 24)
 				_, err := s.BasicSignIn(test.email, test.password)
 				assertIsError(t, test.wantedErr, err)
 
@@ -84,7 +86,7 @@ func TestParseToken(t *testing.T) {
 		u := dao.users[0]
 		secret := "#12345"
 
-		s := NewBasicSignInService(dao, secret, 24)
+		s := NewBasicSignInService(NewRepository(dao), secret, 24)
 		tokenString, err := s.BasicSignIn(u.Email, "1234abcd")
 		if err != nil {
 			t.FailNow()
@@ -110,12 +112,12 @@ func TestRegister(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		input *RegisterMutation
+		input *RegisterInput
 
 		wantedErr error
 	}{
 		"happy case": {
-			input: &RegisterMutation{
+			input: &RegisterInput{
 				Email:                "newEmail@gmail.com",
 				Username:             "newUser",
 				Password:             "1234abcd",
@@ -125,7 +127,7 @@ func TestRegister(t *testing.T) {
 		},
 
 		"existed email": {
-			input: &RegisterMutation{
+			input: &RegisterInput{
 				Email:                "victornm@es.com",
 				Username:             "newUser",
 				Password:             "1234abcd",
@@ -135,7 +137,7 @@ func TestRegister(t *testing.T) {
 		},
 
 		"existed username": {
-			input: &RegisterMutation{
+			input: &RegisterInput{
 				Email:                "newEmail@gmail.com",
 				Username:             "victornm",
 				Password:             "1234abcd",
@@ -151,7 +153,7 @@ func TestRegister(t *testing.T) {
 				// given
 				dao := newMockUserDao()
 				dao.seed(usersInDB)
-				s := NewRegisterService(dao, newMockSender(dao))
+				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
 
 				// when
 				err := s.Register(test.input)
@@ -168,10 +170,10 @@ func TestRegister_SendActivationMail(t *testing.T) {
 		// given
 		dao := newMockUserDao()
 		sender := newMockSender(dao)
-		s := NewRegisterService(dao, sender)
+		s := NewRegisterService(NewRepository(dao), sender)
 
 		// when
-		err := s.Register(&RegisterMutation{
+		err := s.Register(&RegisterInput{
 			Email:                "newEmail@gmail.com",
 			Username:             "newUser",
 			Password:             "1234abcd",
@@ -186,7 +188,7 @@ func TestRegister_SendActivationMail(t *testing.T) {
 }
 
 type mockSender struct {
-	dao Finder
+	dao ReadGateway
 
 	email         string
 	activationKey string
@@ -208,7 +210,7 @@ func (sender *mockSender) SendActivationEmail(userID int) {
 	return
 }
 
-func newMockSender(dao Finder) *mockSender {
+func newMockSender(dao ReadGateway) *mockSender {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
@@ -217,7 +219,7 @@ func newMockSender(dao Finder) *mockSender {
 
 func TestRegister_ValidateInput(t *testing.T) {
 	t.Run("valid inputs", func(t *testing.T) {
-		tests := []*RegisterMutation{
+		tests := []*RegisterInput{
 			{
 				Email:                "foo@bar.com",
 				Username:             "lucifer_silver",
@@ -231,7 +233,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 			t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
 				dao := newMockUserDao()
 
-				s := NewRegisterService(dao, newMockSender(dao))
+				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
 
 				assert.NoError(t, s.Register(input))
 			})
@@ -239,7 +241,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 	})
 
 	t.Run("invalid inputs", func(t *testing.T) {
-		tests := map[string]*RegisterMutation{
+		tests := map[string]*RegisterInput{
 			"invalid email": {
 				Email:                "not an email",
 				Username:             "lucifer_silver",
@@ -301,7 +303,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				dao := newMockUserDao()
 
-				s := NewRegisterService(dao, newMockSender(dao))
+				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
 
 				err := s.Register(input)
 
