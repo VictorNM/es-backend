@@ -1,12 +1,9 @@
-package user
+package auth
 
 import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
-	"github.com/victornm/es-backend/store"
-	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
@@ -31,18 +28,18 @@ type BasicSignInService interface {
 }
 
 type basicSignInService struct {
-	userFinder Finder
+	readRepository ReadRepository
 
 	// jwt
 	secret  string
 	expired time.Duration
 }
 
-func NewBasicSignInService(userGetter Finder, secret string, expiredHours int) *basicSignInService {
+func NewBasicSignInService(repository ReadRepository, secret string, expiredHours int) *basicSignInService {
 	return &basicSignInService{
-		userFinder: userGetter,
-		secret:     secret,
-		expired:    time.Duration(expiredHours) * time.Hour,
+		readRepository: repository,
+		secret:         secret,
+		expired:        time.Duration(expiredHours) * time.Hour,
 	}
 }
 
@@ -61,16 +58,12 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 		return "", wrapError(ErrInvalidInput, err)
 	}
 
-	u, err := s.userFinder.FindUserByEmail(email)
+	u, err := s.readRepository.FindUserByEmail(email)
 	if err != nil {
 		return "", wrapError(ErrNotAuthenticated, "email")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(u.HashedPassword), []byte(password))
-	if err == bcrypt.ErrMismatchedHashAndPassword {
-		return "", wrapError(ErrNotAuthenticated, err)
-	}
-
+	err = u.ComparePassword(password)
 	if err != nil {
 		return "", wrapError(ErrNotAuthenticated, err)
 	}
@@ -86,7 +79,7 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    "auth.service",
 		},
-		AuthDTO: &AuthDTO{UserID: u.ID},
+		UserAuthDTO: &UserAuthDTO{UserID: u.ID},
 	})
 
 	tokenString, err := token.SignedString([]byte(s.secret))
@@ -100,14 +93,14 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 // ===== JWT =====
 
 type JWTParserService interface {
-	ParseToken(tokenString string) (*AuthDTO, error)
+	ParseToken(tokenString string) (*UserAuthDTO, error)
 }
 
 type jwtParserService struct {
 	secret string
 }
 
-func (s *jwtParserService) ParseToken(tokenString string) (*AuthDTO, error) {
+func (s *jwtParserService) ParseToken(tokenString string) (*UserAuthDTO, error) {
 	var claims jwtClaims
 
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (i interface{}, err error) {
@@ -118,16 +111,16 @@ func (s *jwtParserService) ParseToken(tokenString string) (*AuthDTO, error) {
 		return nil, wrapError(ErrNotAuthenticated, err)
 	}
 
-	return claims.AuthDTO, nil
+	return claims.UserAuthDTO, nil
 }
 
-type AuthDTO struct {
+type UserAuthDTO struct {
 	UserID int `json:"user_id"`
 }
 
 type jwtClaims struct {
 	jwt.StandardClaims
-	*AuthDTO
+	*UserAuthDTO
 }
 
 func NewJWTParserService(secret string) *jwtParserService {
@@ -137,10 +130,10 @@ func NewJWTParserService(secret string) *jwtParserService {
 // ===== Register =====
 
 type RegisterService interface {
-	Register(input *RegisterMutation) error
+	Register(input *RegisterInput) error
 }
 
-type RegisterMutation struct {
+type RegisterInput struct {
 	Email                string `json:"email" validate:"required,email"`
 	Username             string `json:"username" validate:"required,min=2,max=30"`
 	Password             string `json:"password" validate:"required,password"`
@@ -149,35 +142,29 @@ type RegisterMutation struct {
 }
 
 type registerService struct {
-	dao    FindCreator
-	sender ActivationEmailSender
+	repository Repository
+	sender     ActivationEmailSender
 }
 
-func (s *registerService) Register(input *RegisterMutation) error {
+func (s *registerService) Register(input *RegisterInput) error {
 	if err := validate(input); err != nil {
 		return wrapError(ErrInvalidInput, err)
 	}
 
-	if _, err := s.dao.FindUserByEmail(input.Email); err == nil {
+	if _, err := s.repository.FindUserByEmail(input.Email); err == nil {
 		return wrapError(ErrEmailExisted, input.Email)
 	}
 
-	if _, err := s.dao.FindUserByUsername(input.Username); err == nil {
+	if _, err := s.repository.FindUserByUsername(input.Username); err == nil {
 		return wrapError(ErrUsernameExisted, input.Username)
 	}
 
-	hashed, err := hashPassword(input.Password)
+	u, err := NewUser(input.Email, input.Password)
 	if err != nil {
 		return wrapError(ErrUnknown, err)
 	}
 
-	u := &store.UserRow{
-		Email:          input.Email,
-		HashedPassword: hashed,
-		IsActive:       false,
-		ActivationKey:  uuid.New().String(),
-	}
-	id, err := s.dao.CreateUser(u)
+	id, err := s.repository.CreateUser(u)
 
 	if err != nil {
 		return wrapError(ErrUnknown, err)
@@ -194,20 +181,11 @@ type ActivationEmailSender interface {
 	SendActivationEmail(userID int)
 }
 
-func NewRegisterService(dao FindCreator, sender ActivationEmailSender) *registerService {
+func NewRegisterService(repository Repository, sender ActivationEmailSender) *registerService {
 	return &registerService{
-		dao:    dao,
-		sender: sender,
+		repository: repository,
+		sender:     sender,
 	}
-}
-
-func hashPassword(password string) (string, error) {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-
-	return string(hashed), nil
 }
 
 func wrapError(err error, msgAndArgs ...interface{}) error {

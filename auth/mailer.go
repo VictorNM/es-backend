@@ -1,4 +1,4 @@
-package user
+package auth
 
 import (
 	"fmt"
@@ -7,12 +7,12 @@ import (
 
 // consoleSender simulate sending email by print to stdin
 type consoleSender struct {
-	dao     Finder
-	baseURL string
+	repository ReadRepository
+	baseURL    string
 }
 
 func (sender *consoleSender) SendActivationEmail(userID int) {
-	u, err := sender.dao.FindUserByID(userID)
+	u, err := sender.repository.FindUserByID(userID)
 	if err != nil {
 		return
 	}
@@ -25,6 +25,6 @@ func (sender *consoleSender) SendActivationEmail(userID int) {
 	return
 }
 
-func NewConsoleSender(dao Finder, baseURL string) *consoleSender {
-	return &consoleSender{dao: dao, baseURL: baseURL}
+func NewConsoleSender(repository ReadRepository, baseURL string) *consoleSender {
+	return &consoleSender{repository: repository, baseURL: baseURL}
 }

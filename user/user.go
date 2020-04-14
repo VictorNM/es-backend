@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"github.com/victornm/es-backend/store"
 )
 
 var ErrNotFound = errors.New("user not found")
@@ -51,4 +52,8 @@ func NewQueryService(finder Finder) *queryService {
 	return &queryService{
 		finder: finder,
 	}
+}
+
+type Finder interface {
+	FindUserByID(id int) (*store.UserRow, error)
 }
