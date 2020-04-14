@@ -3,7 +3,7 @@ package api
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/user"
+	"github.com/victornm/es-backend/auth"
 	"log"
 )
 
@@ -51,11 +51,11 @@ func response(c *gin.Context, code int, data interface{}) {
 	})
 }
 
-func getUser(c *gin.Context) *user.AuthDTO {
+func getUser(c *gin.Context) *auth.UserAuthDTO {
 	userAuth, ok := c.Get("user")
 	if !ok {
 		log.Panic("key 'user' should be present in context")
 	}
 
-	return userAuth.(*user.AuthDTO)
+	return userAuth.(*auth.UserAuthDTO)
 }

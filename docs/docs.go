@@ -87,7 +87,7 @@ var doc = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "Register using email and password",
                 "parameters": [
@@ -97,7 +97,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.RegisterMutation"
+                            "$ref": "#/definitions/auth.RegisterMutation"
                         }
                     }
                 ],
@@ -139,7 +139,7 @@ var doc = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "Basic sign in using email, password",
                 "responses": {
@@ -220,6 +220,33 @@ var doc = `{
                 }
             }
         },
+        "auth.RegisterMutation": {
+            "type": "object",
+            "required": [
+                "email",
+                "full_name",
+                "password",
+                "password_confirmation",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "password_confirmation": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "user.ProfileDTO": {
             "type": "object",
             "properties": {
@@ -249,33 +276,6 @@ var doc = `{
                 },
                 "year_of_birth": {
                     "type": "integer"
-                }
-            }
-        },
-        "user.RegisterMutation": {
-            "type": "object",
-            "required": [
-                "email",
-                "full_name",
-                "password",
-                "password_confirmation",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "password_confirmation": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
                 }
             }
         }
