@@ -9,7 +9,13 @@ require (
 	github.com/gin-gonic/gin v1.6.2
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/go-playground/validator/v10 v10.2.0
+	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/google/uuid v1.1.1
+	github.com/jmoiron/sqlx v1.2.0
+	github.com/lib/pq v1.3.0
+	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
+	github.com/spf13/cobra v1.0.0
+	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.5.1
 	github.com/swaggo/gin-swagger v1.2.0
 	github.com/swaggo/swag v1.5.1

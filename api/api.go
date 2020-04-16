@@ -1,7 +1,10 @@
 package api
 
 import (
+	"github.com/jmoiron/sqlx"
+	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -12,6 +15,7 @@ import (
 
 type Server struct {
 	router *gin.Engine
+	db     *sqlx.DB
 
 	config *ServerConfig
 }
@@ -33,8 +37,9 @@ func NewServer(config *ServerConfig) *Server {
 // @in header
 // @name Authorization
 func (s *Server) Init() {
-	s.router = gin.Default()
+	s.connectDB()
 
+	s.router = gin.Default()
 	s.initRouter()
 }
 
@@ -65,6 +70,22 @@ func (s *Server) initRouter() {
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }
 
+func (s *Server) connectDB() {
+	u, err := url.Parse(s.config.SqlConnString)
+	if err != nil {
+		log.Fatalf("invalid SQL URL %v", err)
+	}
+
+	log.Println(u.Scheme)
+
+	db, err := sqlx.Open(u.Scheme, s.config.SqlConnString)
+	if err != nil {
+		log.Fatalf("open database failed: %v", err)
+	}
+
+	s.db = db
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
@@ -74,6 +95,8 @@ type ServerConfig struct {
 
 	JWTSecret       string
 	JWTExpiredHours int
+
+	SqlConnString string
 }
 
 // @Summary PING PONG
