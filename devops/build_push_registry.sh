@@ -5,6 +5,7 @@ set -o errexit
 
 echo "---Install IBM Cloud CLI and registry plugins"
 curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+curl -sL https://ibm.biz/idt-installer | bash
 
 echo "---Login into IBM Cloud CLI"
 ibmcloud api cloud.ibm.com
