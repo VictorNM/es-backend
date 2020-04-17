@@ -12,7 +12,7 @@ ibmcloud login --apikey $IBMCLOUD_API_KEY -c $IBMCLOUD_ACC_ID --no-region
 docker login -u iamapikey -p $IBMCLOUD_API_KEY us.icr.io
 
 echo "---Build Docker Image"
-docker build . -f ../Dockerfile -t esbackend:$TRAVIS_BUILD_NUMBER
+docker build . -f $TRAVIS_BUILD_DIR/Dockerfile -t esbackend:$TRAVIS_BUILD_NUMBER
 
 echo "---Tag docker image with IBM Cloud"
 docker tag esbackend:$TRAVIS_BUILD_NUMBER us.icr.io/esregistry/esbackend:$TRAVIS_BUILD_NUMBER
