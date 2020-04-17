@@ -4,22 +4,23 @@ import (
 	"time"
 )
 
+// TODO: Set mapper func
 type UserRow struct {
-	ID             int
-	Email          string
-	Username       string
-	HashedPassword string
-	FullName       string
-	Phone          string
-	YearOfBirth    int
-	Country        string
-	Gender         string
-	Language       string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	IsActive       bool
-	IsSuperAdmin   bool
-	ActivationKey  string
+	ID             int       `db:"id"`
+	Email          string    `db:"email"`
+	Username       string    `db:"username"`
+	HashedPassword string    `db:"hashed_password"`
+	FullName       string    `db:"full_name"`
+	Phone          string    `db:"phone"`
+	YearOfBirth    int       `db:"year_of_birth"`
+	Country        string    `db:"country"`
+	Gender         string    `db:"gender"`
+	Language       string    `db:"language"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
+	IsActive       bool      `db:"is_active"`
+	IsSuperAdmin   bool      `db:"is_super_admin"`
+	ActivationKey  string    `db:"activation_key"`
 }
 
 type CourseRow struct {
