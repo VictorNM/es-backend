@@ -8,7 +8,7 @@ curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
 
 echo "---Login into IBM Cloud CLI"
 ibmcloud api cloud.ibm.com
-ibmcloud login --apikey $IBMCLOUD_API_KEY -c $IBMCLOUD_ACC_ID
+ibmcloud login --apikey $IBMCLOUD_API_KEY -c $IBMCLOUD_ACC_ID --no-region
 ibmcloud cr login
 
 echo "---Build Docker Image"
