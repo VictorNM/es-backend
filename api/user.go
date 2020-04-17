@@ -13,7 +13,7 @@ import (
 // @Produce json
 // @Success 200 {object} api.BaseResponse{data=user.ProfileDTO} "Get profile successfully"
 // @Router /users/profile [get]
-func (s *Server) createGetProfileHandler() func(c *gin.Context) {
+func (s *realServer) createGetProfileHandler() gin.HandlerFunc {
 	userQuery := s.createUserGetProfileQuery()
 
 	return func(c *gin.Context) {
@@ -28,6 +28,6 @@ func (s *Server) createGetProfileHandler() func(c *gin.Context) {
 	}
 }
 
-func (s *Server) createUserGetProfileQuery() user.GetProfileQuery {
+func (s *realServer) createUserGetProfileQuery() user.GetProfileQuery {
 	return user.NewQueryService(memory.UserStore)
 }
