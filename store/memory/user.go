@@ -13,7 +13,7 @@ import (
 var UserStore *userStore
 
 func init() {
-	UserStore = newUserStore()
+	UserStore = NewUserStore()
 }
 
 var fixedUsers = []*store.UserRow{
@@ -105,7 +105,7 @@ func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
 	return u.ID, nil
 }
 
-func newUserStore() *userStore {
+func NewUserStore() *userStore {
 	s := &userStore{currentID: 0}
 	for _, u := range fixedUsers {
 		_, err := s.CreateUser(u)

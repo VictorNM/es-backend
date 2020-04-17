@@ -16,7 +16,7 @@ import (
 // @Success 200 {object} api.BaseResponse{data=authToken} "Sign in successfully"
 // @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "Not authenticated"
 // @Router /users/sign-in [post]
-func (s *Server) createSignInHandler() func(c *gin.Context) {
+func (s *realServer) createSignInHandler() gin.HandlerFunc {
 	authService := s.createBasicSignInService()
 
 	return func(c *gin.Context) {
@@ -48,7 +48,7 @@ type authToken struct {
 // @Success 201 {object} api.BaseResponse "Register successfully"
 // @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
 // @Router /users/register [post]
-func (s *Server) createRegisterHandler() func(c *gin.Context) {
+func (s *realServer) createRegisterHandler() gin.HandlerFunc {
 	service := s.createRegisterService()
 
 	return func(c *gin.Context) {
@@ -67,7 +67,7 @@ func (s *Server) createRegisterHandler() func(c *gin.Context) {
 	}
 }
 
-func (s *Server) createAuthMiddleware() gin.HandlerFunc {
+func (s *realServer) createAuthMiddleware() gin.HandlerFunc {
 	tokenParser := s.createAuthTokenParser()
 
 	return func(c *gin.Context) {
@@ -87,18 +87,18 @@ func (s *Server) createAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func (s *Server) createAuthTokenParser() auth.JWTParserService {
+func (s *realServer) createAuthTokenParser() auth.JWTParserService {
 	return auth.NewJWTParserService(s.config.JWTSecret)
 }
 
-func (s *Server) createBasicSignInService() auth.BasicSignInService {
+func (s *realServer) createBasicSignInService() auth.BasicSignInService {
 	return auth.NewBasicSignInService(s.createAuthUserRepository(), s.config.JWTSecret, s.config.JWTExpiredHours)
 }
 
-func (s *Server) createRegisterService() auth.RegisterService {
+func (s *realServer) createRegisterService() auth.RegisterService {
 	return auth.NewRegisterService(s.createAuthUserRepository(), auth.NewConsoleSender(s.createAuthUserRepository(), s.config.FrontendBaseURL))
 }
 
-func (s *Server) createAuthUserRepository() auth.UserRepository {
+func (s *realServer) createAuthUserRepository() auth.UserRepository {
 	return auth.NewRepository(memory.UserStore)
 }
