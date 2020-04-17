@@ -13,6 +13,9 @@ export KUBECTL=$TRAVIS_BUILD_DIR/kubectl
 echo "Target the cluster"
 ibmcloud ks cluster config --cluster $CLUSTER_ID
 
+echo "Configure the deployment"
+sed -i 's#%IMAGE_VERSION%#'$TRAVIS_BUILD_NUMBER'#g' $TRAVIS_BUILD_DIR/devops/yaml_temp/back-end-deployment.yaml
+
 echo "Applying yaml files"
 $KUBECTL --namespace $NAMESPACE apply -f $TRAVIS_BUILD_DIR/devops/yaml_temp/back-end-deployment.yaml
 $KUBECTL --namespace $NAMESPACE apply -f $TRAVIS_BUILD_DIR/devops/yaml_temp/back-end-service.yaml
