@@ -10,7 +10,9 @@ before_deploy:
   - sh ./devops/build_push_registry.sh
 
 deploy:
-  - sh ./devops/deploy.sh
+  - provider: script
+    skip_cleanup: true
+    script: bash ./devops/deploy.sh
 
 notifications:
   email:
