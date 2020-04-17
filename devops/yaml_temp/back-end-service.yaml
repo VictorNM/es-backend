@@ -10,5 +10,5 @@ spec:
     app: es-backend               # Selects any Pod with labels `app=es-backend`
   ports:
   - name: http
-    port: 8080
-    targetPort: 8080
+    port: 80
+    targetPort: 80
