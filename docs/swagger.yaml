@@ -1,0 +1,167 @@
+basePath: /api
+definitions:
+  api.BaseResponse:
+    properties:
+      data:
+        type: object
+      errors:
+        items:
+          $ref: '#/definitions/api.Error'
+        type: array
+    type: object
+  api.Error:
+    properties:
+      detail:
+        type: string
+      message:
+        type: string
+    type: object
+  api.authToken:
+    properties:
+      token:
+        type: string
+    type: object
+  auth.RegisterMutation:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+      password_confirmation:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - password_confirmation
+    - username
+    type: object
+  user.ProfileDTO:
+    properties:
+      country:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      gender:
+        type: string
+      id:
+        type: integer
+      language:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+      year_of_birth:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: VictorNM
+    url: https://github.com/VictorNM/
+  license: {}
+  title: ES API
+  version: "1.0"
+paths:
+  /api/ping:
+    get:
+      description: For testing
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: PING PONG
+          schema:
+            $ref: '#/definitions/api.BaseResponse'
+      summary: PING PONG
+      tags:
+      - ping
+  /users/profile:
+    get:
+      description: Get profile by user_id in token,
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get profile successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.ProfileDTO'
+              type: object
+      summary: Get current sign-inned user's profile
+      tags:
+      - user
+  /users/register:
+    post:
+      description: Register using email and password
+      parameters:
+      - description: Register new user
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterMutation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Register successfully
+          schema:
+            $ref: '#/definitions/api.BaseResponse'
+        "400":
+          description: Bad request
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                errors:
+                  items:
+                    $ref: '#/definitions/api.Error'
+                  type: array
+              type: object
+      summary: Register using email and password
+      tags:
+      - auth
+  /users/sign-in:
+    post:
+      description: Sign in using email and password
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sign in successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.authToken'
+              type: object
+        "401":
+          description: Not authenticated
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                errors:
+                  items:
+                    $ref: '#/definitions/api.Error'
+                  type: array
+              type: object
+      summary: Basic sign in using email, password
+      tags:
+      - auth
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"

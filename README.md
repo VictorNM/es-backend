@@ -1,5 +1,7 @@
 # E-SHARING
 
+![Go](https://github.com/VictorNM/es-backend/workflows/Go/badge.svg?branch=develop)
+
 [//]: <> (## Getting Started)
 
 [//]: <> (### Prerequisites)
@@ -27,7 +29,9 @@ go test ./... -cover
 cp .env.example .env
 ```
 
-### Using Docker
+### Running
+
+#### Using Docker
 
 Build
 
@@ -45,7 +49,7 @@ docker run --network host -d -p 127.0.0.1:8080:8080/tcp --env-file ./.env es:lat
 docker run -d -p 127.0.0.1:8080:8080/tcp --env-file ./.env es:latest
 ```
 
-### Using Go
+#### Using Go
 
 ```bash
 # Get godotenv binary (require once)
@@ -57,6 +61,10 @@ godotenv go run main.go
 # Run in Windows
 godotenv.exe go run main.go
 ```
+
+### API References
+
+Open browser at: `{host}/swagger/index.html`
 
 [//]: <> (## Built With)
 
