@@ -49,15 +49,14 @@ func (tester *pingTester) TestPing() {
 		e := httpexpect.New(tester.T(), server.URL)
 
 		Convey("When I GET /api/ping", func() {
-			req := e.GET("/api/ping")
+			res := e.GET("/api/ping").Expect()
 
 			Convey("Then response should be 200", func() {
-				req.Expect().
-					Status(http.StatusOK)
+				res.Status(http.StatusOK)
 			})
 
 			Convey("And response data should equal PONG", func() {
-				req.Expect().JSON().Object().
+				res.JSON().Object().
 					ContainsKey("data").
 					ValueEqual("data", "PONG")
 			})

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-playground/assert/v2"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 	"testing"
 )
 

@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/store/memory"
-	"github.com/victornm/es-backend/user"
+	"github.com/victornm/es-backend/pkg/store/memory"
+	"github.com/victornm/es-backend/pkg/user"
 	"net/http"
 )
 

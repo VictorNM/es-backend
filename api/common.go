@@ -3,7 +3,7 @@ package api
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/auth"
+	"github.com/victornm/es-backend/pkg/auth"
 	"log"
 )
 

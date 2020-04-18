@@ -1,6 +1,6 @@
 package auth
 
-import "github.com/victornm/es-backend/store"
+import "github.com/victornm/es-backend/pkg/store"
 
 type ReadUserRepository interface {
 	FindUserByID(id int) (*User, error)

@@ -2,7 +2,7 @@ package memory
 
 import (
 	"errors"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"strings"
