@@ -2,7 +2,7 @@ package auth
 
 import (
 	"github.com/google/uuid"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 	"golang.org/x/crypto/bcrypt"
 )
 

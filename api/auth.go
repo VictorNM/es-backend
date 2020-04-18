@@ -1,12 +1,12 @@
 package api
 
 import (
-	"github.com/victornm/es-backend/auth"
+	"github.com/victornm/es-backend/pkg/auth"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/store/memory"
+	"github.com/victornm/es-backend/pkg/store/memory"
 )
 
 // @Summary Basic sign in using email, password

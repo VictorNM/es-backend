@@ -2,7 +2,7 @@ package auth
 
 import (
 	"errors"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 	"log"
 	"strings"
 )
