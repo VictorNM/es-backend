@@ -1,4 +1,4 @@
-package auth
+package internal
 
 import (
 	"github.com/go-playground/validator/v10"
@@ -6,9 +6,9 @@ import (
 	"unicode"
 )
 
-// validate is the central place to validate all input, using lib github.com/go-playground/validator tag
-// in unit test, this function can be disable by replace with validate = func(o interface{}) error {return nil}
-var validate = func(o interface{}) error {
+// Validate is the central place to Validate all input, using lib github.com/go-playground/validator tag
+// in unit test, this function can be disable by replace with Validate = func(o interface{}) error {return nil}
+var Validate = func(o interface{}) error {
 	return v.Struct(o)
 }
 

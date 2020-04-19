@@ -14,6 +14,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.3.0
+	github.com/magiconair/properties v1.8.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/cobra v1.0.0

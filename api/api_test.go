@@ -1,9 +1,7 @@
 package api
 
 import (
-	"github.com/gavv/httpexpect/v2"
 	"github.com/gin-gonic/gin"
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
@@ -24,52 +22,60 @@ func (s *unittestServer) Init() {
 	s.initRouter()
 }
 
-func initUnittestServer() *unittestServer {
-	s := &unittestServer{realServer: NewServer(&ServerConfig{
+func newUnittestServer() *unittestServer {
+	return &unittestServer{realServer: NewServer(&ServerConfig{
 		FrontendBaseURL: "localhost:3000",
 		JWTSecret:       "1232asdasdsd",
 		JWTExpiredHours: 12,
 	})}
+}
+
+func initUnittestServer() *unittestServer {
+	s := newUnittestServer()
 
 	s.Init()
 
 	return s
 }
 
-type pingTester struct {
+type baseTester struct {
 	suite.Suite
-	handler http.Handler
+
+	srv Server
+}
+
+func (tester *baseTester) Do(req *http.Request) *httptest.ResponseRecorder {
+	tester.srv.Init()
+
+	w := httptest.NewRecorder()
+	tester.srv.ServeHTTP(w, req)
+	return w
+}
+
+func newBaseTester(srv Server) *baseTester {
+	return &baseTester{srv: srv}
+}
+
+type pingTester struct {
+	*baseTester
 }
 
 // TestPingHandler test the route /api/ping
 // This is an example for create tests for api
 func (tester *pingTester) TestPing() {
-	Convey("Given a new server", tester.T(), func() {
-		server := httptest.NewServer(tester.handler)
-		e := httpexpect.New(tester.T(), server.URL)
+	req := newRequest(http.MethodGet, "/api/ping", nil)
 
-		Convey("When I GET /api/ping", func() {
-			res := e.GET("/api/ping").Expect()
+	w := tester.Do(req)
 
-			Convey("Then response should be 200", func() {
-				res.Status(http.StatusOK)
-			})
-
-			Convey("And response data should equal PONG", func() {
-				res.JSON().Object().
-					ContainsKey("data").
-					ValueEqual("data", "PONG")
-			})
-		})
-
-		Reset(func() {
-			server.Close()
-		})
-	})
+	res := getResponse(w)
+	tester.Assert().Nil(res.Errors)
+	tester.Assert().Equal("PONG", res.Data)
 }
 
 func TestPing(t *testing.T) {
-	tester := &pingTester{handler: initUnittestServer()}
+	tester := &pingTester{
+		baseTester: newBaseTester(initUnittestServer()),
+	}
 
 	suite.Run(t, tester)
 }

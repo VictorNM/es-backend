@@ -1,60 +1,100 @@
 package api
 
 import (
-	"github.com/gavv/httpexpect/v2"
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/suite"
+	"github.com/victornm/es-backend/pkg/store"
+	"github.com/victornm/es-backend/pkg/store/memory"
+	"github.com/victornm/es-backend/pkg/user"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 type userTester struct {
-	suite.Suite
-	handler http.Handler
+	*baseTester
+
+	gateway *mockUserGateway
+}
+
+func (tester *userTester) Do(req *http.Request) *httptest.ResponseRecorder {
+	origin := createUserFinder
+	createUserFinder = func(srv *realServer) user.Finder {
+		return tester.gateway
+	}
+	defer func() {
+		createUserFinder = origin
+	}()
+
+	return tester.baseTester.Do(req)
 }
 
 func (tester *userTester) TestGetProfile() {
-	t := tester.T()
-	Convey("Given a sign-in user", t, func() {
-		server := httptest.NewServer(tester.handler)
-		e := httpexpect.New(t, server.URL)
+	method := http.MethodGet
+	target := "/api/users/profile"
 
-		token := e.POST("/api/users/sign-in", nil).
-			WithBasicAuth("admin@es.com", "admin").
-			Expect().
-			JSON().Object().
-			Value("data").Object().
-			Value("token").String().Raw()
-
-		Convey("When get profile with the return token", func() {
-			res := e.GET("/api/users/profile").
-				WithHeader("Authorization", "Bearer " + token).
-				Expect()
-
-			Convey("Then should not error", func() {
-				res.Status(http.StatusOK)
-				res.JSON().Object().
-					ContainsKey("errors").
-					ValueEqual("errors", nil)
-			})
-
-			Convey("Then should return correct user profile", func() {
-				res.JSON().Object().
-					ContainsKey("data").
-					Value("data").Object().
-					ContainsKey("email").
-					Value("email").
-					String().Equal("admin@es.com")
-			})
-
-			Reset(func() {
-				server.Close()
-			})
-		})
+	tester.gateway.Seed([]*store.UserRow{
+		{
+			Email:          "admin@es.com",
+			Username:       "admin",
+			HashedPassword: genPassword("admin"),
+			IsSuperAdmin:   true,
+			IsActive:       true,
+		},
 	})
+
+	tests := map[string]struct {
+		isUser   bool
+		email    string
+		password string
+
+		wantedStatus int
+		shouldError  bool
+	}{
+		"admin should get profile succeed": {
+			isUser:   true,
+			email:    "admin@es.com",
+			password: "admin",
+
+			wantedStatus: http.StatusOK,
+			shouldError:  false,
+		},
+
+		"not a user should get profile failed": {
+			isUser: false,
+
+			wantedStatus: http.StatusUnauthorized,
+			shouldError:  true,
+		},
+	}
+
+	for name, test := range tests {
+		tester.T().Run(name, func(t *testing.T) {
+			req := newRequest(method, target, nil)
+
+			if test.isUser {
+				token := signIn(tester.srv, test.email, test.password)
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
+
+			w := tester.Do(req)
+
+			tester.Assert().Equal(test.wantedStatus, w.Code)
+			tester.Assert().Equal(test.shouldError, getErrors(w) != nil)
+		})
+	}
 }
 
 func TestUser(t *testing.T) {
-	suite.Run(t, &userTester{handler: initUnittestServer()})
+	suite.Run(t, &userTester{
+		baseTester: newBaseTester(initUnittestServer()),
+		gateway:    &mockUserGateway{UserGateway: memory.NewUserGateway()},
+	})
+}
+
+type mockUserGateway struct {
+	*memory.UserGateway
+}
+
+func (gw *mockUserGateway) Seed(users []*store.UserRow) {
+	gw.UserGateway.Seed(users)
 }

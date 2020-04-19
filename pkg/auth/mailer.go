@@ -5,6 +5,10 @@ import (
 	"path"
 )
 
+type ActivationEmailSender interface {
+	SendActivationEmail(userID int)
+}
+
 // consoleSender simulate sending email by print to stdin
 type consoleSender struct {
 	repository ReadUserRepository

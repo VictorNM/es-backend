@@ -1,11 +1,15 @@
-package auth
+package auth_test
 
 import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	. "github.com/victornm/es-backend/pkg/auth"
+	"github.com/victornm/es-backend/pkg/auth/internal"
+	"github.com/victornm/es-backend/pkg/auth/repository/memory"
 	"github.com/victornm/es-backend/pkg/store"
+	gatewayMemory "github.com/victornm/es-backend/pkg/store/memory"
 	"log"
 	"sync"
 	"testing"
@@ -57,10 +61,10 @@ func TestBasicLogin(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			withoutValidate(func() {
-				dao := newMockUserDao()
-				dao.seed(userInDB)
+				dao := gatewayMemory.NewUserGateway()
+				dao.Seed(userInDB)
 
-				s := NewBasicSignInService(NewRepository(dao), "#12345", 24)
+				s := NewBasicSignInService(memory.NewRepository(dao), "#12345", 24)
 				_, err := s.BasicSignIn(test.email, test.password)
 				assertIsError(t, test.wantedErr, err)
 
@@ -80,14 +84,13 @@ func TestParseToken(t *testing.T) {
 	}
 
 	t.Run("receive valid token", func(t *testing.T) {
-		dao := newMockUserDao()
-		dao.seed(usersInDB)
+		dao := gatewayMemory.NewUserGateway()
+		dao.Seed(usersInDB)
 
-		u := dao.users[0]
 		secret := "#12345"
 
-		s := NewBasicSignInService(NewRepository(dao), secret, 24)
-		tokenString, err := s.BasicSignIn(u.Email, "1234abcd")
+		s := NewBasicSignInService(memory.NewRepository(dao), secret, 24)
+		tokenString, err := s.BasicSignIn("victornm@es.com", "1234abcd")
 		if err != nil {
 			t.FailNow()
 		}
@@ -96,6 +99,8 @@ func TestParseToken(t *testing.T) {
 
 		userAuth, err := parser.ParseToken(tokenString)
 		assert.NoError(t, err)
+
+		u, _ := dao.FindUserByEmail("victornm@es.com")
 		assert.Equal(t, u.ID, userAuth.UserID)
 	})
 }
@@ -151,9 +156,11 @@ func TestRegister(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			withoutValidate(func() {
 				// given
-				dao := newMockUserDao()
-				dao.seed(usersInDB)
-				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
+				dao := gatewayMemory.NewUserGateway()
+				dao.Seed(usersInDB)
+
+				repository := memory.NewRepository(dao)
+				s := NewRegisterService(repository, newMockSender(repository))
 
 				// when
 				err := s.Register(test.input)
@@ -168,9 +175,11 @@ func TestRegister(t *testing.T) {
 func TestRegister_SendActivationMail(t *testing.T) {
 	withoutValidate(func() {
 		// given
-		dao := newMockUserDao()
-		sender := newMockSender(dao)
-		s := NewRegisterService(NewRepository(dao), sender)
+		dao := gatewayMemory.NewUserGateway()
+
+		repository := memory.NewRepository(dao)
+		sender := newMockSender(repository)
+		s := NewRegisterService(repository, sender)
 
 		// when
 		err := s.Register(&RegisterInput{
@@ -188,7 +197,7 @@ func TestRegister_SendActivationMail(t *testing.T) {
 }
 
 type mockSender struct {
-	dao ReadGateway
+	repository ReadUserRepository
 
 	email         string
 	activationKey string
@@ -199,7 +208,7 @@ type mockSender struct {
 func (sender *mockSender) SendActivationEmail(userID int) {
 	defer sender.wg.Done()
 
-	u, err := sender.dao.FindUserByID(userID)
+	u, err := sender.repository.FindUserByID(userID)
 	if err != nil {
 		return
 	}
@@ -210,11 +219,11 @@ func (sender *mockSender) SendActivationEmail(userID int) {
 	return
 }
 
-func newMockSender(dao ReadGateway) *mockSender {
+func newMockSender(repository ReadUserRepository) *mockSender {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	return &mockSender{dao: dao, wg: wg}
+	return &mockSender{repository: repository, wg: wg}
 }
 
 func TestRegister_ValidateInput(t *testing.T) {
@@ -231,9 +240,10 @@ func TestRegister_ValidateInput(t *testing.T) {
 
 		for i, input := range tests {
 			t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-				dao := newMockUserDao()
+				dao := gatewayMemory.NewUserGateway()
+				repository := memory.NewRepository(dao)
 
-				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
+				s := NewRegisterService(repository, newMockSender(repository))
 
 				assert.NoError(t, s.Register(input))
 			})
@@ -301,9 +311,10 @@ func TestRegister_ValidateInput(t *testing.T) {
 
 		for name, input := range tests {
 			t.Run(name, func(t *testing.T) {
-				dao := newMockUserDao()
+				dao := gatewayMemory.NewUserGateway()
+				repository := memory.NewRepository(dao)
 
-				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
+				s := NewRegisterService(repository, newMockSender(repository))
 
 				err := s.Register(input)
 
@@ -314,7 +325,30 @@ func TestRegister_ValidateInput(t *testing.T) {
 }
 
 func assertIsError(t *testing.T, wanted, got error) {
+	t.Helper()
 	if !errors.Is(got, wanted) {
 		t.Errorf("Error %v is not an %v", got, wanted)
 	}
+}
+
+func mustHashPassword(password string) string {
+	hashed, err := internal.HashPassword(password)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return hashed
+}
+
+// withoutValidate temporary disable validation
+func withoutValidate(f func()) {
+	origin := internal.Validate
+	internal.Validate = func(o interface{}) error {
+		return nil
+	}
+	defer func() {
+		internal.Validate = origin
+	}()
+
+	f()
 }

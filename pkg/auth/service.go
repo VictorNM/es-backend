@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/victornm/es-backend/pkg/auth/internal"
 	"time"
 )
 
@@ -54,7 +55,7 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 		Password: password,
 	}
 
-	if err := validate(input); err != nil {
+	if err := internal.Validate(input); err != nil {
 		return "", wrapError(ErrInvalidInput, err)
 	}
 
@@ -147,7 +148,7 @@ type registerService struct {
 }
 
 func (s *registerService) Register(input *RegisterInput) error {
-	if err := validate(input); err != nil {
+	if err := internal.Validate(input); err != nil {
 		return wrapError(ErrInvalidInput, err)
 	}
 
@@ -159,7 +160,7 @@ func (s *registerService) Register(input *RegisterInput) error {
 		return wrapError(ErrUsernameExisted, input.Username)
 	}
 
-	u, err := NewUser(input.Email, input.Password)
+	u, err := internal.NewUser(input.Email, input.Password)
 	if err != nil {
 		return wrapError(ErrUnknown, err)
 	}
@@ -175,10 +176,6 @@ func (s *registerService) Register(input *RegisterInput) error {
 	})
 
 	return nil
-}
-
-type ActivationEmailSender interface {
-	SendActivationEmail(userID int)
 }
 
 func NewRegisterService(repository UserRepository, sender ActivationEmailSender) *registerService {
