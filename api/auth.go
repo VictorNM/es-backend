@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/victornm/es-backend/pkg/auth"
+	authMemory "github.com/victornm/es-backend/pkg/auth/repository/memory"
 	"net/http"
 	"strings"
 
@@ -71,19 +72,19 @@ func (s *realServer) createAuthMiddleware() gin.HandlerFunc {
 	tokenParser := s.createAuthTokenParser()
 
 	return func(c *gin.Context) {
-		// Look for an Authorization header
-		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
-			// Should be a bearer token
-			if len(authHeader) > 6 && strings.ToUpper(authHeader[0:7]) == "BEARER " {
-				userAuth, err := tokenParser.ParseToken(authHeader[7:])
-				if err != nil {
-					reject(c, http.StatusUnauthorized, err)
-					return
-				}
-
-				c.Set("user", userAuth)
-			}
+		authHeader := c.GetHeader("Authorization")
+		if len(authHeader) < 7 || strings.ToUpper(authHeader[0:7]) != "BEARER "{
+			abort(c, http.StatusUnauthorized, auth.ErrNotAuthenticated)
+			return
 		}
+
+		userAuth, err := tokenParser.ParseToken(authHeader[7:])
+		if err != nil {
+			abort(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		c.Set("user", userAuth)
 	}
 }
 
@@ -92,13 +93,15 @@ func (s *realServer) createAuthTokenParser() auth.JWTParserService {
 }
 
 func (s *realServer) createBasicSignInService() auth.BasicSignInService {
-	return auth.NewBasicSignInService(s.createAuthUserRepository(), s.config.JWTSecret, s.config.JWTExpiredHours)
+	return auth.NewBasicSignInService(createAuthUserRepository(s), s.config.JWTSecret, s.config.JWTExpiredHours)
 }
 
 func (s *realServer) createRegisterService() auth.RegisterService {
-	return auth.NewRegisterService(s.createAuthUserRepository(), auth.NewConsoleSender(s.createAuthUserRepository(), s.config.FrontendBaseURL))
+	repository := createAuthUserRepository(s)
+	return auth.NewRegisterService(repository, auth.NewConsoleSender(repository, s.config.FrontendBaseURL))
 }
 
-func (s *realServer) createAuthUserRepository() auth.UserRepository {
-	return auth.NewRepository(memory.UserStore)
+// TODO: Change to real repository
+var createAuthUserRepository = func(srv *realServer) auth.UserRepository {
+	return authMemory.NewRepository(memory.GlobalUserStore)
 }

@@ -29,5 +29,9 @@ func (s *realServer) createGetProfileHandler() gin.HandlerFunc {
 }
 
 func (s *realServer) createUserGetProfileQuery() user.GetProfileQuery {
-	return user.NewQueryService(memory.UserStore)
+	return user.NewQueryService(createUserFinder(s))
+}
+
+var createUserFinder = func(srv *realServer) user.Finder {
+	return memory.GlobalUserStore
 }

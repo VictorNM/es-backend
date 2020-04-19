@@ -1,13 +1,21 @@
-package auth
+package internal
 
 import (
 	"github.com/google/uuid"
-	"github.com/victornm/es-backend/pkg/store"
 	"golang.org/x/crypto/bcrypt"
+	"time"
 )
 
 type User struct {
-	*store.UserRow
+	ID             int
+	Email          string
+	Username       string
+	HashedPassword string
+	FullName       string
+	IsActive       bool
+	IsSuperAdmin   bool
+	ActivationKey  string
+	CreatedAt      time.Time
 }
 
 func (u *User) ComparePassword(password string) error {
@@ -15,22 +23,21 @@ func (u *User) ComparePassword(password string) error {
 }
 
 func NewUser(email, password string) (*User, error) {
-	hashed, err := hashPassword(password)
+	hashed, err := HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
 
 	return &User{
-		UserRow: &store.UserRow{
-			Email:          email,
-			HashedPassword: hashed,
-			IsActive:       false,
-			ActivationKey:  uuid.New().String(),
-		},
+		Email:          email,
+		HashedPassword: hashed,
+		IsActive:       false,
+		IsSuperAdmin:   false,
+		ActivationKey:  uuid.New().String(),
 	}, nil
 }
 
-func hashPassword(password string) (string, error) {
+func HashPassword(password string) (string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
