@@ -18,3 +18,8 @@ type UserRepository interface {
 	ReadUserRepository
 	WriteUserRepository
 }
+
+type OAuth2StateRepository interface {
+	CreateState(state *internal.OAuth2State) error
+	FindState(nonce string) (*internal.OAuth2State, error)
+}

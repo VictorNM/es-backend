@@ -63,6 +63,7 @@ func toUserModel(row *store.UserRow) *internal.User {
 		IsActive:       row.IsActive,
 		IsSuperAdmin:   row.IsSuperAdmin,
 		ActivationKey:  row.ActivationKey,
+		Provider:       row.OAuth2Provider,
 	}
 }
 
@@ -77,5 +78,6 @@ func toUserRow(model *internal.User) *store.UserRow {
 		IsActive:       model.IsActive,
 		IsSuperAdmin:   model.IsSuperAdmin,
 		ActivationKey:  model.ActivationKey,
+		OAuth2Provider: model.Provider,
 	}
 }

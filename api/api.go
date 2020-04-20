@@ -27,6 +27,8 @@ type Server interface {
 	// Only http handler method will be extract to the interface
 	createSignInHandler() gin.HandlerFunc
 	createRegisterHandler() gin.HandlerFunc
+	createOauth2RegisterHandler() gin.HandlerFunc
+	createOauth2RegisterCallbackHandler() gin.HandlerFunc
 	createAuthMiddleware() gin.HandlerFunc
 	createPingHandler() gin.HandlerFunc
 	createGetProfileHandler() gin.HandlerFunc
@@ -49,6 +51,14 @@ func routeMap(s Server) map[string]map[string][]createHandlerFunc {
 		},
 		"/users/register": {
 			http.MethodPost: []createHandlerFunc{s.createRegisterHandler},
+		},
+
+		"/oauth2/:provider/register": {
+			http.MethodGet: []createHandlerFunc{s.createOauth2RegisterHandler},
+		},
+
+		"/oauth2/:provider/register/callback": {
+			http.MethodGet: []createHandlerFunc{s.createOauth2RegisterCallbackHandler},
 		},
 
 		// user handler
@@ -133,11 +143,15 @@ func (s *realServer) connectDB() {
 
 type ServerConfig struct {
 	FrontendBaseURL string // the domain where the frontend live
+	APIBaseURL      string
 
 	JWTSecret       string
 	JWTExpiredHours int
 
 	SqlConnString string
+
+	OAuth2GoogleClientID     string
+	OAuth2GoogleClientSecret string
 }
 
 // @Summary PING PONG
