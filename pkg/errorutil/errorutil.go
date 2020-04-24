@@ -1,8 +1,8 @@
-package auth
+package errorutil
 
 import "fmt"
 
-func wrapError(err error, msgAndArgs ...interface{}) error {
+func Wrap(err error, msgAndArgs ...interface{}) error {
 	return fmt.Errorf("%w: %s", err, messageFromMsgAndArgs(msgAndArgs))
 }
 

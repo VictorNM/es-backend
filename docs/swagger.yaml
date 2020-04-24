@@ -1,4 +1,3 @@
-basePath: /api
 definitions:
   api.BaseResponse:
     properties:
@@ -21,7 +20,14 @@ definitions:
       token:
         type: string
     type: object
-  auth.RegisterMutation:
+  auth.OAuth2Input:
+    properties:
+      code:
+        type: string
+      provider:
+        type: string
+    type: object
+  auth.RegisterInput:
     properties:
       email:
         type: string
@@ -61,14 +67,9 @@ definitions:
       year_of_birth:
         type: integer
     type: object
-host: localhost:8080
 info:
-  contact:
-    name: VictorNM
-    url: https://github.com/VictorNM/
+  contact: {}
   license: {}
-  title: ES API
-  version: "1.0"
 paths:
   /api/ping:
     get:
@@ -83,6 +84,73 @@ paths:
       summary: PING PONG
       tags:
       - ping
+  /auth/sign-in:
+    post:
+      description: Sign in using oauth2
+      parameters:
+      - description: Sign in using oauth2
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/auth.OAuth2Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sign in successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/api.authToken'
+              type: object
+        "401":
+          description: Not authenticated
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                errors:
+                  items:
+                    $ref: '#/definitions/api.Error'
+                  type: array
+              type: object
+      summary: Sign in using oauth2
+      tags:
+      - auth
+  /oauth2/register:
+    post:
+      description: Register using oauth2
+      parameters:
+      - description: Register new user using oauth2
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/auth.OAuth2Input'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Register successfully
+          schema:
+            $ref: '#/definitions/api.BaseResponse'
+        "400":
+          description: Bad request
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                errors:
+                  items:
+                    $ref: '#/definitions/api.Error'
+                  type: array
+              type: object
+      summary: Register using oauth2
+      tags:
+      - auth
   /users/profile:
     get:
       description: Get profile by user_id in token,
@@ -110,7 +178,7 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/auth.RegisterMutation'
+          $ref: '#/definitions/auth.RegisterInput'
       produces:
       - application/json
       responses:
@@ -161,7 +229,4 @@ paths:
       summary: Basic sign in using email, password
       tags:
       - auth
-securityDefinitions:
-  BasicAuth:
-    type: basic
 swagger: "2.0"

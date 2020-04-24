@@ -47,7 +47,7 @@ func genPassword(password string) string {
 }
 
 type UserGateway struct {
-	mu        sync.Mutex
+	mu        *sync.Mutex
 	currentID int
 	users     []*store.UserRow
 }
@@ -123,5 +123,5 @@ func (gw *UserGateway) Clear() {
 }
 
 func NewUserGateway() *UserGateway {
-	return &UserGateway{currentID: 0, mu: sync.Mutex{}}
+	return &UserGateway{currentID: 0, mu: new(sync.Mutex)}
 }

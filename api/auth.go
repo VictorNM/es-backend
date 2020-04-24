@@ -3,11 +3,19 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/victornm/es-backend/pkg/auth"
-	authMemory "github.com/victornm/es-backend/pkg/auth/repository/memory"
+	"github.com/victornm/es-backend/pkg/auth/mock"
 	"github.com/victornm/es-backend/pkg/store/memory"
 	"net/http"
 	"strings"
 )
+
+type AuthConfig struct {
+	JWTSecret       string
+	JWTExpiredHours int
+
+	OAuth2GoogleClientID     string
+	OAuth2GoogleClientSecret string
+}
 
 // @Summary Basic sign in using email, password
 // @Description Sign in using email and password
@@ -67,36 +75,66 @@ func (s *realServer) createRegisterHandler() gin.HandlerFunc {
 	}
 }
 
+// @Summary Register using oauth2
+// @Description Register using oauth2
+// @Tags auth
+// @Produce json
+// @Param user body auth.OAuth2Input true "Register new user using oauth2"
+// @Success 201 {object} api.BaseResponse "Register successfully"
+// @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
+// @Router /oauth2/register [post]
 func (s *realServer) createOauth2RegisterHandler() gin.HandlerFunc {
-	service := s.createOAuth2Service()
+	service := s.createOAuth2RegisterService()
 
 	return func(c *gin.Context) {
-		authURL, err := service.OAuth2Register(c.Param("provider"))
+		var input auth.OAuth2Input
+		err := c.ShouldBindJSON(&input)
 		if err != nil {
-			reject(c, http.StatusBadRequest, err)
+			reject(c, http.StatusBadRequest, auth.ErrInvalidInput)
 			return
 		}
 
-		c.Redirect(302, authURL)
-	}
-}
-
-func (s *realServer) createOauth2RegisterCallbackHandler() gin.HandlerFunc {
-	service := s.createOAuth2Service()
-
-	return func(c *gin.Context) {
-		err := service.OAuth2RegisterCallback(c.Query("state"), c.Query("code"))
+		err = service.OAuth2Register(input)
 		if err != nil {
 			reject(c, http.StatusUnauthorized, err)
 			return
 		}
 
-		response(c, 200, c.Query("code"))
+		response(c, http.StatusCreated, nil)
+	}
+}
+
+// @Summary Sign in using oauth2
+// @Description Sign in using oauth2
+// @Tags auth
+// @Produce json
+// @Param user body auth.OAuth2Input true "Sign in using oauth2"
+// @Success 200 {object} api.BaseResponse{data=authToken} "Sign in successfully"
+// @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "Not authenticated"
+// @Router /oauth2/sign-in [post]
+func (s *realServer) createOauth2SignInHandler() gin.HandlerFunc {
+	service := s.createOAuth2SignInService()
+
+	return func(c *gin.Context) {
+		var input auth.OAuth2Input
+		err := c.ShouldBindJSON(&input)
+		if err != nil {
+			reject(c, http.StatusBadRequest, auth.ErrInvalidInput)
+			return
+		}
+
+		tokenString, err := service.OAuth2SignIn(input)
+		if err != nil {
+			reject(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		response(c, http.StatusCreated, authToken{Token: tokenString})
 	}
 }
 
 func (s *realServer) createAuthMiddleware() gin.HandlerFunc {
-	tokenParser := s.createAuthTokenParser()
+	tokenParser := s.createJWTService()
 
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -115,12 +153,12 @@ func (s *realServer) createAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func (s *realServer) createAuthTokenParser() auth.JWTParserService {
-	return auth.NewJWTParserService(s.config.JWTSecret)
+func (s *realServer) createJWTService() auth.JWTService {
+	return auth.NewJWTService(s.config.JWTSecret, s.config.JWTExpiredHours)
 }
 
 func (s *realServer) createBasicSignInService() auth.BasicSignInService {
-	return auth.NewBasicSignInService(createAuthUserRepository(s), s.config.JWTSecret, s.config.JWTExpiredHours)
+	return auth.NewBasicSignInService(createAuthUserRepository(s), s.createJWTService())
 }
 
 func (s *realServer) createRegisterService() auth.RegisterService {
@@ -128,28 +166,22 @@ func (s *realServer) createRegisterService() auth.RegisterService {
 	return auth.NewRegisterService(repository, auth.NewConsoleSender(repository, s.config.FrontendBaseURL))
 }
 
-func (s *realServer) createOAuth2Service() auth.OAuth2RegisterService {
-	return auth.NewOAuth2RegisterService(
-		createOAuth2StateRepository(s),
-		createAuthUserRepository(s),
-		s.createOAuth2ClientFactory(),
-	)
+func (s *realServer) createOAuth2RegisterService() auth.OAuth2RegisterService {
+	return auth.NewOAuth2RegisterService(createAuthUserRepository(s), createOAuth2ClientFactory(s), )
 }
 
-func (s *realServer) createOAuth2ClientFactory() auth.OAuth2ClientFactory {
-	return auth.NewOAuth2ClientFactory(auth.WithGoogle(
+func (s *realServer) createOAuth2SignInService() auth.OAuth2SignInService {
+	return auth.NewOAuth2SignInService(createAuthUserRepository(s), createOAuth2ClientFactory(s), s.createJWTService())
+}
+
+// TODO: Change to real repository
+var createAuthUserRepository = func(s *realServer) auth.UserRepository {
+	return mock.NewRepository(memory.GlobalUserStore)
+}
+
+var createOAuth2ClientFactory = func(s *realServer) auth.OAuth2ProviderFactory {
+	return auth.NewOAuth2ClientFactory(auth.NewGoogleProvider(
 		s.config.OAuth2GoogleClientID,
 		s.config.OAuth2GoogleClientSecret,
-		s.config.APIBaseURL+"/api/oauth2/callback"),
-	)
-}
-
-// TODO: Change to real repository
-var createAuthUserRepository = func(srv *realServer) auth.UserRepository {
-	return authMemory.NewRepository(memory.GlobalUserStore)
-}
-
-// TODO: Change to real repository
-var createOAuth2StateRepository = func(srv *realServer) auth.OAuth2StateRepository {
-	return authMemory.NewOauth2StateRepository()
+	))
 }

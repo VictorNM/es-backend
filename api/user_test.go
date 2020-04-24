@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/stretchr/testify/suite"
+	"github.com/victornm/es-backend/api/internal/jsontest"
 	"github.com/victornm/es-backend/pkg/store"
 	"github.com/victornm/es-backend/pkg/store/memory"
 	"github.com/victornm/es-backend/pkg/user"
@@ -29,14 +30,11 @@ func (tester *userTester) Do(req *http.Request) *httptest.ResponseRecorder {
 }
 
 func (tester *userTester) TestGetProfile() {
-	method := http.MethodGet
-	target := "/api/users/profile"
-
 	tester.gateway.Seed([]*store.UserRow{
 		{
 			Email:          "admin@es.com",
 			Username:       "admin",
-			HashedPassword: genPassword("admin"),
+			HashedPassword: mustHashPassword("admin"),
 			IsSuperAdmin:   true,
 			IsActive:       true,
 		},
@@ -69,11 +67,11 @@ func (tester *userTester) TestGetProfile() {
 
 	for name, test := range tests {
 		tester.T().Run(name, func(t *testing.T) {
-			req := newRequest(method, target, nil)
+			req := jsontest.GET("/api/users/profile")
 
 			if test.isUser {
 				token := signIn(tester.srv, test.email, test.password)
-				req.Header.Set("Authorization", "Bearer "+token)
+				jsontest.SetBearerAuth(req, token)
 			}
 
 			w := tester.Do(req)

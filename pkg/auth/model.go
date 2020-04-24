@@ -1,10 +1,8 @@
-package internal
+package auth
 
 import (
-	"encoding/base64"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"math/rand"
 	"time"
 )
 
@@ -57,19 +55,4 @@ func HashPassword(password string) (string, error) {
 	}
 
 	return string(hashed), nil
-}
-
-type OAuth2State struct {
-	Provider string
-	Nonce    string
-}
-
-func NewOAuth2State(provider string) *OAuth2State {
-	var b []byte
-	rand.Read(b)
-
-	return &OAuth2State{
-		Provider: provider,
-		Nonce:    base64.StdEncoding.EncodeToString(b),
-	}
 }

@@ -33,7 +33,9 @@ func newRootCommand() *cobra.Command {
 	}
 
 	var (
-		config   = &api.ServerConfig{}
+		config = &api.ServerConfig{
+			AuthConfig: &api.AuthConfig{},
+		}
 		httpPort int
 	)
 

@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
-	"github.com/victornm/es-backend/pkg/auth/internal"
+	"github.com/victornm/es-backend/pkg/errorutil"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	googleOAuth2 "google.golang.org/api/oauth2/v2"
@@ -11,61 +11,111 @@ import (
 	"strings"
 )
 
-const (
-	ProviderGoogle string = "google"
-)
-
 var ErrInvalidOAuth2Provider = errors.New("oauth2 provider not supported")
 
 type OAuth2RegisterService interface {
-	OAuth2Register(provider string) (string, error)
-	OAuth2RegisterCallback(state, code string) error
+	OAuth2Register(input OAuth2Input) error
 }
 
-type SetClient interface {
-	setClient(factory OAuth2ClientFactory)
+type OAuth2SignInService interface {
+	OAuth2SignIn(input OAuth2Input) (string, error)
 }
 
-type setConfig struct {
-	provider string
-	client   OAuth2Client
+type OAuth2Provider interface {
+	Name() string
+	GetUser(code string) (*User, error)
 }
 
-func (setter *setConfig) setClient(factory OAuth2ClientFactory) {
-	factory[strings.ToLower(setter.provider)] = setter.client
+type OAuth2ProviderFactory map[string]OAuth2Provider
+
+type oauth2Service struct {
+	userRepository UserRepository
+	factory        OAuth2ProviderFactory
+	jwtService     JWTService
 }
 
-func WithGoogle(clientID, clientSecret, redirectURL string) *setConfig {
-	return &setConfig{
-		provider: ProviderGoogle,
-		client: &googleClient{
-			config: oauth2.Config{
-				ClientID:     clientID,
-				ClientSecret: clientSecret,
-				Endpoint:     google.Endpoint,
-				RedirectURL:  redirectURL,
-				Scopes: []string{
-					googleOAuth2.UserinfoEmailScope,
-					googleOAuth2.UserinfoProfileScope,
-				},
-			},
-		},
+type OAuth2Input struct {
+	Provider string `json:"provider"`
+	Code     string `json:"code"`
+}
+
+func (s *oauth2Service) OAuth2Register(input OAuth2Input) error {
+	client, err := s.factory.Provider(input.Provider)
+	if err != nil {
+		return err
+	}
+
+	u, err := client.GetUser(input.Code)
+	if err != nil {
+		return errorutil.Wrap(ErrNotAuthenticated, err)
+	}
+
+	_, err = s.userRepository.FindUserByEmail(u.Email)
+	if err == nil {
+		return errorutil.Wrap(ErrEmailExisted, err)
+	}
+
+	_, err = s.userRepository.CreateUser(u)
+	if err != nil {
+		return errorutil.Wrap(ErrUnknown, err)
+	}
+
+	return nil
+}
+
+func (s *oauth2Service) OAuth2SignIn(input OAuth2Input) (string, error) {
+	client, err := s.factory.Provider(input.Provider)
+	if err != nil {
+		return "", err
+	}
+
+	u, err := client.GetUser(input.Code)
+	if err != nil {
+		return "", errorutil.Wrap(ErrNotAuthenticated, err)
+	}
+
+	user, err := s.userRepository.FindUserByEmail(u.Email)
+	if err != nil {
+		return "", errorutil.Wrap(ErrNotAuthenticated, err)
+	}
+
+	if user.Provider != u.Provider {
+		return "", errorutil.Wrap(ErrNotAuthenticated, "provider is not the same")
+	}
+
+	if !user.IsActive {
+		return "", errorutil.Wrap(ErrNotActivated)
+	}
+
+	return s.jwtService.GenerateToken(user)
+}
+
+func NewOAuth2RegisterService(userRepository UserRepository, factory OAuth2ProviderFactory) OAuth2RegisterService {
+	return &oauth2Service{
+		factory:        factory,
+		userRepository: userRepository,
 	}
 }
 
-func NewOAuth2ClientFactory(options ...SetClient) OAuth2ClientFactory {
-	f := OAuth2ClientFactory{}
+func NewOAuth2SignInService(userRepository UserRepository, factory OAuth2ProviderFactory, jwtService JWTService) OAuth2SignInService {
+	return &oauth2Service{
+		factory:        factory,
+		userRepository: userRepository,
+		jwtService:     jwtService,
+	}
+}
 
-	for _, o := range options {
-		o.setClient(f)
+func NewOAuth2ClientFactory(providers ...OAuth2Provider) OAuth2ProviderFactory {
+	f := OAuth2ProviderFactory{}
+
+	for _, p := range providers {
+		f.setProvider(p)
 	}
 
 	return f
 }
 
-type OAuth2ClientFactory map[string]OAuth2Client
-
-func (f OAuth2ClientFactory) GetService(provider string) (OAuth2Client, error) {
+func (f OAuth2ProviderFactory) Provider(provider string) (OAuth2Provider, error) {
 	if s, ok := f[strings.ToLower(provider)]; ok {
 		return s, nil
 	}
@@ -73,41 +123,33 @@ func (f OAuth2ClientFactory) GetService(provider string) (OAuth2Client, error) {
 	return nil, ErrInvalidOAuth2Provider
 }
 
-type OAuth2Client interface {
-	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
-	GetUser(code string) (*internal.User, error)
+func (f OAuth2ProviderFactory) setProvider(provider OAuth2Provider) {
+	f[strings.ToLower(provider.Name())] = provider
 }
 
-type oauth2RegisterService struct {
-	stateRepository OAuth2StateRepository
-	userRepository  UserRepository
-	factory         OAuth2ClientFactory
-}
-
-func (s *oauth2RegisterService) OAuth2Register(provider string) (string, error) {
-	oauth2Service, err := s.factory.GetService(provider)
-	if err != nil {
-		return "", err
+func NewGoogleProvider(clientID, clientSecret string) *googleProvider {
+	return &googleProvider{
+		config: oauth2.Config{
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			Endpoint:     google.Endpoint,
+			Scopes: []string{
+				googleOAuth2.UserinfoEmailScope,
+				googleOAuth2.UserinfoProfileScope,
+			},
+		},
 	}
-
-	state := internal.NewOAuth2State(provider)
-	err = s.stateRepository.CreateState(state)
-	if err != nil {
-		return "", err
-	}
-
-	return oauth2Service.AuthCodeURL(state.Nonce, oauth2.AccessTypeOffline), nil
 }
 
-type googleClient struct {
+type googleProvider struct {
 	config oauth2.Config
 }
 
-func (r *googleClient) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
-	return r.config.AuthCodeURL(state, opts...)
+func (r *googleProvider) Name() string {
+	return "google"
 }
 
-func (r *googleClient) GetUser(code string) (*internal.User, error) {
+func (r *googleProvider) GetUser(code string) (*User, error) {
 	ctx := context.Background()
 
 	token, err := r.config.Exchange(ctx, code)
@@ -126,7 +168,7 @@ func (r *googleClient) GetUser(code string) (*internal.User, error) {
 		return nil, err
 	}
 
-	u := internal.NewOAuth2User(googleUser.Email, ProviderGoogle)
+	u := NewOAuth2User(googleUser.Email, r.Name())
 	if len(googleUser.Name) > 0 {
 		u.FullName = googleUser.Name
 	} else {
@@ -134,39 +176,4 @@ func (r *googleClient) GetUser(code string) (*internal.User, error) {
 	}
 
 	return u, nil
-}
-
-func (s *oauth2RegisterService) OAuth2RegisterCallback(nonce, code string) error {
-	state, err := s.stateRepository.FindState(nonce)
-	if err != nil {
-		return wrapError(ErrNotAuthenticated, "invalid nonce")
-	}
-
-	oauth2Service, err := s.factory.GetService(state.Provider)
-	if err != nil {
-		return err
-	}
-
-	u, err := oauth2Service.GetUser(code)
-	if err != nil {
-		return wrapError(ErrNotAuthenticated)
-	}
-
-	if _, err := s.userRepository.FindUserByEmail(u.Email); err != nil {
-		return wrapError(ErrEmailExisted, u.Email)
-	}
-
-	if _, err := s.userRepository.CreateUser(u); err != nil {
-		return wrapError(ErrUnknown, "create user failed")
-	}
-
-	return nil
-}
-
-func NewOAuth2RegisterService(stateRepository OAuth2StateRepository, userRepository UserRepository, factory OAuth2ClientFactory) *oauth2RegisterService {
-	return &oauth2RegisterService{
-		stateRepository: stateRepository,
-		factory:         factory,
-		userRepository:  userRepository,
-	}
 }

@@ -1,9 +1,8 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
+	"github.com/victornm/es-backend/api/internal/jsontest"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -11,22 +10,13 @@ import (
 
 // newRequest marshal the body before pass to httptest.NewRequest
 func newRequest(method, target string, body interface{}) *http.Request {
-	if reader, ok := body.(io.Reader); ok {
-		return httptest.NewRequest(method, target, reader)
-	}
-
-	b, err := json.Marshal(body)
-	if err != nil {
-		panic(err)
-	}
-
-	req := httptest.NewRequest(method, target, bytes.NewReader(b))
-	return req
+	return jsontest.NewRequest(method, target, body)
 }
 
 func signIn(handler http.Handler, email, password string) string {
-	req := newRequest(http.MethodPost, "/api/users/sign-in", nil)
-	req.SetBasicAuth(email, password)
+	req := jsontest.WrapPOST("/api/users/sign-in", nil).
+		SetBasicAuth(email, password).
+		Unwrap()
 
 	w := httptest.NewRecorder()
 
@@ -54,6 +44,7 @@ func getDataAsMap(w *httptest.ResponseRecorder) map[string]interface{} {
 
 func getResponse(w *httptest.ResponseRecorder) *BaseResponse {
 	var res *BaseResponse
+	log.Println(w.Body.String())
 	err := json.Unmarshal([]byte(w.Body.String()), &res)
 	if err != nil {
 		log.Panicf("invalid json %v", err)

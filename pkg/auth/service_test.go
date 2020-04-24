@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	. "github.com/victornm/es-backend/pkg/auth"
 	"github.com/victornm/es-backend/pkg/auth/internal"
-	"github.com/victornm/es-backend/pkg/auth/repository/memory"
+	"github.com/victornm/es-backend/pkg/auth/mock"
 	"github.com/victornm/es-backend/pkg/store"
 	gatewayMemory "github.com/victornm/es-backend/pkg/store/memory"
 	"log"
@@ -64,7 +64,7 @@ func TestBasicLogin(t *testing.T) {
 				dao := gatewayMemory.NewUserGateway()
 				dao.Seed(userInDB)
 
-				s := NewBasicSignInService(memory.NewRepository(dao), "#12345", 24)
+				s := NewBasicSignInService(mock.NewRepository(dao), NewJWTService("#12345", 24))
 				_, err := s.BasicSignIn(test.email, test.password)
 				assertIsError(t, test.wantedErr, err)
 
@@ -89,13 +89,13 @@ func TestParseToken(t *testing.T) {
 
 		secret := "#12345"
 
-		s := NewBasicSignInService(memory.NewRepository(dao), secret, 24)
+		s := NewBasicSignInService(mock.NewRepository(dao), NewJWTService(secret, 24))
 		tokenString, err := s.BasicSignIn("victornm@es.com", "1234abcd")
 		if err != nil {
 			t.FailNow()
 		}
 
-		parser := NewJWTParserService(secret)
+		parser := NewJWTService(secret, 1)
 
 		userAuth, err := parser.ParseToken(tokenString)
 		assert.NoError(t, err)
@@ -159,7 +159,7 @@ func TestRegister(t *testing.T) {
 				dao := gatewayMemory.NewUserGateway()
 				dao.Seed(usersInDB)
 
-				repository := memory.NewRepository(dao)
+				repository := mock.NewRepository(dao)
 				s := NewRegisterService(repository, newMockSender(repository))
 
 				// when
@@ -177,7 +177,7 @@ func TestRegister_SendActivationMail(t *testing.T) {
 		// given
 		dao := gatewayMemory.NewUserGateway()
 
-		repository := memory.NewRepository(dao)
+		repository := mock.NewRepository(dao)
 		sender := newMockSender(repository)
 		s := NewRegisterService(repository, sender)
 
@@ -241,7 +241,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 		for i, input := range tests {
 			t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
 				dao := gatewayMemory.NewUserGateway()
-				repository := memory.NewRepository(dao)
+				repository := mock.NewRepository(dao)
 
 				s := NewRegisterService(repository, newMockSender(repository))
 
@@ -312,7 +312,7 @@ func TestRegister_ValidateInput(t *testing.T) {
 		for name, input := range tests {
 			t.Run(name, func(t *testing.T) {
 				dao := gatewayMemory.NewUserGateway()
-				repository := memory.NewRepository(dao)
+				repository := mock.NewRepository(dao)
 
 				s := NewRegisterService(repository, newMockSender(repository))
 
@@ -332,7 +332,7 @@ func assertIsError(t *testing.T, wanted, got error) {
 }
 
 func mustHashPassword(password string) string {
-	hashed, err := internal.HashPassword(password)
+	hashed, err := HashPassword(password)
 	if err != nil {
 		log.Panic(err)
 	}
