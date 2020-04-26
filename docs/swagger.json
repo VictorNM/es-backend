@@ -25,7 +25,59 @@
                 }
             }
         },
-        "/auth/sign-in": {
+        "/oauth2/register": {
+            "post": {
+                "description": "Register using oauth2",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register using oauth2",
+                "parameters": [
+                    {
+                        "description": "Register new user using oauth2",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuth2Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Register successfully",
+                        "schema": {
+                            "$ref": "#/definitions/api.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "errors": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/api.Error"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/sign-in": {
             "post": {
                 "description": "Sign in using oauth2",
                 "produces": [
@@ -67,58 +119,6 @@
                     },
                     "401": {
                         "description": "Not authenticated",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/api.BaseResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "errors": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/api.Error"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/oauth2/register": {
-            "post": {
-                "description": "Register using oauth2",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Register using oauth2",
-                "parameters": [
-                    {
-                        "description": "Register new user using oauth2",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/auth.OAuth2Input"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Register successfully",
-                        "schema": {
-                            "$ref": "#/definitions/api.BaseResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request",
                         "schema": {
                             "allOf": [
                                 {

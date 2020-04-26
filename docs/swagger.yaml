@@ -84,7 +84,38 @@ paths:
       summary: PING PONG
       tags:
       - ping
-  /auth/sign-in:
+  /oauth2/register:
+    post:
+      description: Register using oauth2
+      parameters:
+      - description: Register new user using oauth2
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/auth.OAuth2Input'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Register successfully
+          schema:
+            $ref: '#/definitions/api.BaseResponse'
+        "400":
+          description: Bad request
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.BaseResponse'
+            - properties:
+                errors:
+                  items:
+                    $ref: '#/definitions/api.Error'
+                  type: array
+              type: object
+      summary: Register using oauth2
+      tags:
+      - auth
+  /oauth2/sign-in:
     post:
       description: Sign in using oauth2
       parameters:
@@ -118,37 +149,6 @@ paths:
                   type: array
               type: object
       summary: Sign in using oauth2
-      tags:
-      - auth
-  /oauth2/register:
-    post:
-      description: Register using oauth2
-      parameters:
-      - description: Register new user using oauth2
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/auth.OAuth2Input'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Register successfully
-          schema:
-            $ref: '#/definitions/api.BaseResponse'
-        "400":
-          description: Bad request
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.BaseResponse'
-            - properties:
-                errors:
-                  items:
-                    $ref: '#/definitions/api.Error'
-                  type: array
-              type: object
-      summary: Register using oauth2
       tags:
       - auth
   /users/profile:
