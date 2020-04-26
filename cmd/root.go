@@ -15,18 +15,27 @@ func newRootCommand() *cobra.Command {
 		secret          string
 		jwtExpiredHours int
 		frontendBaseURL string
+		apiBaseURL      string
 		httpPort        int
 		sqlUrl          string
+
+		oauth2GoogleClientID     string
+		oauth2GoogleClientSecret string
 	}{
-		secret:          envString("SECRET", "z91NRBxicpx2qjvO"),
-		jwtExpiredHours: envInt("TOKEN_EXPIRED_HOURS", 24),
-		frontendBaseURL: envString("FRONT_END_BASE_URL", "localhost:3000"),
-		httpPort:        envInt("HTTP_PORT", 8080),
-		sqlUrl:          envString("SQL_URL", "postgres://postgres:admin@localhost:5432/postgres?sslmode=disable&search_path=public"),
+		secret:                   envString("SECRET", "z91NRBxicpx2qjvO"),
+		jwtExpiredHours:          envInt("TOKEN_EXPIRED_HOURS", 24),
+		frontendBaseURL:          envString("FRONTEND_BASE_URL", "http://localhost:3000"),
+		apiBaseURL:               envString("API_BASE_URL", "http://localhost:8080"),
+		httpPort:                 envInt("HTTP_PORT", 8080),
+		sqlUrl:                   envString("SQL_URL", "postgres://postgres:admin@localhost:5432/postgres?sslmode=disable&search_path=public"),
+		oauth2GoogleClientID:     envString("OAUTH2_GOOGLE_CLIENT_ID", ""),
+		oauth2GoogleClientSecret: envString("OAUTH2_GOOGLE_CLIENT_SECRET", ""),
 	}
 
 	var (
-		config   = &api.ServerConfig{}
+		config = &api.ServerConfig{
+			AuthConfig: &api.AuthConfig{},
+		}
 		httpPort int
 	)
 
@@ -40,9 +49,17 @@ func newRootCommand() *cobra.Command {
 			cmd.Flags().
 				StringVar(&config.FrontendBaseURL, "frontend-base-url", defaultConfig.frontendBaseURL, "")
 			cmd.Flags().
+				StringVar(&config.APIBaseURL, "api-base-url", defaultConfig.apiBaseURL, "")
+			cmd.Flags().
 				IntVar(&httpPort, "http-port", defaultConfig.httpPort, "port listening")
 			cmd.Flags().
 				StringVar(&config.SqlConnString, "sql-url", defaultConfig.sqlUrl, "connection string to database")
+			cmd.Flags().
+				StringVar(&config.OAuth2GoogleClientID, "oauth2-google-client-id", defaultConfig.oauth2GoogleClientID, "connection string to database")
+			cmd.Flags().
+				StringVar(&config.OAuth2GoogleClientSecret, "oauth2-google-client-secret", defaultConfig.oauth2GoogleClientSecret, "connection string to database")
+
+			log.Printf("Init server with config: %+v\n", config)
 
 			s := api.NewServer(config)
 			s.Init()

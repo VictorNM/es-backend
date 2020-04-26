@@ -16,7 +16,7 @@ import (
 
 // Server is an interface for HTTP Server
 // Use for create testing implementations
-// For now, we create a unittestServer, using memory repositories for testing
+// For now, we create a testServer, using memory repositories for testing
 // In the future, we can create more type of server, like docker integration server, which use a database inside docker
 // Or a SQLite server, which use SQLite for memory database
 // Or a transaction server, which run every test in a transaction
@@ -27,33 +27,42 @@ type Server interface {
 	// Only http handler method will be extract to the interface
 	createSignInHandler() gin.HandlerFunc
 	createRegisterHandler() gin.HandlerFunc
+	createOauth2RegisterHandler() gin.HandlerFunc
+	createOauth2SignInHandler() gin.HandlerFunc
 	createAuthMiddleware() gin.HandlerFunc
 	createPingHandler() gin.HandlerFunc
 	createGetProfileHandler() gin.HandlerFunc
 }
 
-type createHandlerFunc func() gin.HandlerFunc
-
 // routeMap create single source of truth when testing API
 // Both real server and test server will create routes using this method
 // Note that all route here will be create under the route /api
-func routeMap(s Server) map[string]map[string][]createHandlerFunc {
-	return map[string]map[string][]createHandlerFunc{
+func routeMap(s Server) map[string]map[string][]gin.HandlerFunc {
+	return map[string]map[string][]gin.HandlerFunc{
 		"/ping": {
-			http.MethodGet: []createHandlerFunc{s.createPingHandler},
+			http.MethodGet: []gin.HandlerFunc{s.createPingHandler()},
 		},
 
 		// user auth handler
 		"/users/sign-in": {
-			http.MethodPost: []createHandlerFunc{s.createSignInHandler},
+			http.MethodPost: []gin.HandlerFunc{s.createSignInHandler()},
 		},
+
 		"/users/register": {
-			http.MethodPost: []createHandlerFunc{s.createRegisterHandler},
+			http.MethodPost: []gin.HandlerFunc{s.createRegisterHandler()},
+		},
+
+		"/oauth2/sign-in": {
+			http.MethodPost: []gin.HandlerFunc{s.createOauth2SignInHandler()},
+		},
+
+		"/oauth2/register": {
+			http.MethodPost: []gin.HandlerFunc{s.createOauth2RegisterHandler()},
 		},
 
 		// user handler
 		"/users/profile": {
-			http.MethodGet: []createHandlerFunc{s.createAuthMiddleware, s.createGetProfileHandler},
+			http.MethodGet: []gin.HandlerFunc{s.createAuthMiddleware(), s.createGetProfileHandler()},
 		},
 	}
 }
@@ -102,12 +111,8 @@ func (s *realServer) initRouter() {
 	rootAPI := s.router.Group("/api")
 	routeMap := routeMap(s)
 	for path, methodHandler := range routeMap {
-		for method, createHandlers := range methodHandler {
-			handlers := make([]gin.HandlerFunc, len(createHandlers))
-			for i := range createHandlers {
-				handlers[i] = createHandlers[i]()
-			}
-			rootAPI.Handle(method, path, handlers...)
+		for method, handlerFunc := range methodHandler {
+			rootAPI.Handle(method, path, handlerFunc...)
 		}
 	}
 
@@ -132,12 +137,13 @@ func (s *realServer) connectDB() {
 }
 
 type ServerConfig struct {
+	// config share across packages are define at root level
+	//
 	FrontendBaseURL string // the domain where the frontend live
+	APIBaseURL      string
+	SqlConnString   string
 
-	JWTSecret       string
-	JWTExpiredHours int
-
-	SqlConnString string
+	*AuthConfig
 }
 
 // @Summary PING PONG

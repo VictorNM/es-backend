@@ -48,6 +48,7 @@ func reject(c *gin.Context, code int, errs ...error) {
 	})
 }
 
+// TODO: merge reject and abort
 // abort should be use instead of reject in a middleware to prevent passing request to other handler
 func abort(c *gin.Context, code int, errs ...error) {
 	c.AbortWithStatusJSON(code, &BaseResponse{

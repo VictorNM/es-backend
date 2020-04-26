@@ -18,10 +18,7 @@ var doc = `{
     "info": {
         "description": "{{.Description}}",
         "title": "{{.Title}}",
-        "contact": {
-            "name": "VictorNM",
-            "url": "https://github.com/VictorNM/"
-        },
+        "contact": {},
         "license": {},
         "version": "{{.Version}}"
     },
@@ -43,6 +40,122 @@ var doc = `{
                         "description": "PING PONG",
                         "schema": {
                             "$ref": "#/definitions/api.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/register": {
+            "post": {
+                "description": "Register using oauth2",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register using oauth2",
+                "parameters": [
+                    {
+                        "description": "Register new user using oauth2",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuth2Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Register successfully",
+                        "schema": {
+                            "$ref": "#/definitions/api.BaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "errors": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/api.Error"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/sign-in": {
+            "post": {
+                "description": "Sign in using oauth2",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Sign in using oauth2",
+                "parameters": [
+                    {
+                        "description": "Sign in using oauth2",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.OAuth2Input"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Sign in successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/api.authToken"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Not authenticated",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "errors": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/api.Error"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -97,7 +210,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RegisterMutation"
+                            "$ref": "#/definitions/auth.RegisterInput"
                         }
                     }
                 ],
@@ -220,7 +333,18 @@ var doc = `{
                 }
             }
         },
-        "auth.RegisterMutation": {
+        "auth.OAuth2Input": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.RegisterInput": {
             "type": "object",
             "required": [
                 "email",
@@ -279,11 +403,6 @@ var doc = `{
                 }
             }
         }
-    },
-    "securityDefinitions": {
-        "BasicAuth": {
-            "type": "basic"
-        }
     }
 }`
 
@@ -298,11 +417,11 @@ type swaggerInfo struct {
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = swaggerInfo{
-	Version:     "1.0",
-	Host:        "localhost:8080",
-	BasePath:    "/api",
+	Version:     "",
+	Host:        "",
+	BasePath:    "",
 	Schemes:     []string{},
-	Title:       "ES API",
+	Title:       "",
 	Description: "",
 }
 

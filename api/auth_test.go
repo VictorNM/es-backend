@@ -2,9 +2,9 @@ package api
 
 import (
 	"github.com/stretchr/testify/suite"
+	"github.com/victornm/es-backend/api/internal/jsontest"
 	"github.com/victornm/es-backend/pkg/auth"
-	"github.com/victornm/es-backend/pkg/auth/repository/memory"
-	"github.com/victornm/es-backend/pkg/store"
+	"github.com/victornm/es-backend/pkg/auth/mock"
 	gatewayMemory "github.com/victornm/es-backend/pkg/store/memory"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -16,10 +16,11 @@ import (
 type authTester struct {
 	*baseTester
 
-	userGateway *gatewayMemory.UserGateway
+	repository TestAuthUserRepository
+	provider   TestOAuth2Provider
 }
 
-func genPassword(password string) string {
+func mustHashPassword(password string) string {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Panic(err)
@@ -29,26 +30,29 @@ func genPassword(password string) string {
 }
 
 func (tester *authTester) Do(req *http.Request) *httptest.ResponseRecorder {
-	origin := createAuthUserRepository
+	originRepository := createAuthUserRepository
 	createAuthUserRepository = func(srv *realServer) auth.UserRepository {
-		return memory.NewRepository(tester.userGateway)
+		return tester.repository
+	}
+
+	originFactory := createOAuth2ClientFactory
+	createOAuth2ClientFactory = func(s *realServer) auth.OAuth2ProviderFactory {
+		return auth.NewOAuth2ClientFactory(tester.provider)
 	}
 
 	defer func() {
-		createAuthUserRepository = origin
+		createAuthUserRepository = originRepository
+		createOAuth2ClientFactory = originFactory
 	}()
 
 	return tester.baseTester.Do(req)
 }
 
 func (tester *authTester) TestSignIn() {
-	method := http.MethodPost
-	target := "/api/users/sign-in"
-
-	tester.userGateway.Seed([]*store.UserRow{
+	tester.repository.Seed([]*auth.User{
 		{
 			Email:          "admin@es.com",
-			HashedPassword: genPassword("admin"),
+			HashedPassword: mustHashPassword("admin"),
 			IsActive:       true,
 		},
 	})
@@ -79,8 +83,9 @@ func (tester *authTester) TestSignIn() {
 
 	for name, test := range tests {
 		tester.T().Run(name, func(t *testing.T) {
-			req := newRequest(method, target, nil)
-			req.SetBasicAuth(test.email, test.password)
+			req := jsontest.WrapPOST("/api/users/sign-in", nil).
+				SetBasicAuth(test.email, test.password).
+				Unwrap()
 
 			w := tester.Do(req)
 
@@ -93,12 +98,11 @@ func (tester *authTester) TestSignIn() {
 			}
 		})
 	}
+
+	tester.repository.Clear()
 }
 
 func (tester *authTester) TestRegister() {
-	method := http.MethodPost
-	target := "/api/users/register"
-
 	tests := map[string]struct {
 		body map[string]string
 
@@ -128,7 +132,7 @@ func (tester *authTester) TestRegister() {
 
 	for name, test := range tests {
 		tester.T().Run(name, func(t *testing.T) {
-			req := newRequest(method, target, test.body)
+			req := jsontest.POST("/api/users/register", test.body)
 
 			w := tester.Do(req)
 
@@ -136,12 +140,77 @@ func (tester *authTester) TestRegister() {
 			tester.Assert().Equal(test.shouldError, getErrors(w) != nil)
 		})
 	}
+
+	tester.repository.Clear()
+}
+
+func (tester *authTester) TestOAuth2Register() {
+	providerName := mock.ProviderName
+	tester.repository.Seed([]*auth.User{
+		{
+			Email:    "foo@bar.com",
+			Provider: providerName,
+			IsActive: true,
+		},
+	})
+	tester.provider.Seed(map[string]*auth.User{
+		"code_1": {Email: "victornm@es.com", Provider: providerName},
+	})
+
+	tests := map[string]struct {
+		body map[string]string
+
+		wantedStatus int
+		shouldError  bool
+	}{
+		"": {
+			body: map[string]string{
+				"provider": mock.ProviderName,
+				"code":     "code_1",
+			},
+
+			wantedStatus: http.StatusCreated,
+			shouldError:  false,
+		},
+	}
+
+	for name, test := range tests {
+		tester.T().Run(name, func(t *testing.T) {
+			req := jsontest.POST("/api/oauth2/register", test.body)
+
+			w := tester.Do(req)
+
+			tester.Assert().Equal(test.wantedStatus, w.Code)
+			tester.Assert().Equal(test.shouldError, getErrors(w) != nil)
+		})
+	}
+
+	tester.repository.Clear()
 }
 
 func TestAuth(t *testing.T) {
 	tester := &authTester{
-		baseTester:  newBaseTester(newUnittestServer()),
-		userGateway: gatewayMemory.NewUserGateway(),
+		baseTester: newBaseTester(newUnittestServer()),
+		repository: mock.NewRepository(gatewayMemory.NewUserGateway()),
+		provider:   mock.NewOAuth2Provider(),
 	}
 	suite.Run(t, tester)
+}
+
+type TestAuthUserRepository interface {
+	auth.UserRepository
+
+	// Seed prepare database for testing
+	Seed(users []*auth.User)
+
+	// Clear reset to an empty database
+	Clear()
+}
+
+type TestOAuth2Provider interface {
+	auth.OAuth2Provider
+
+	Seed(users map[string]*auth.User)
+
+	Clear()
 }

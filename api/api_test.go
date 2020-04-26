@@ -8,29 +8,30 @@ import (
 	"testing"
 )
 
-type unittestServer struct {
+type testServer struct {
 	// only re-implement method that access DB of external services
 	// re-use all other methods of the realServer
 	// so we can create a clear boundary for our application, and test everything inside that boundary
 	*realServer
 }
 
-// Init for unittestServer ignore any external connection
+// Init for testServer ignore any external connection
 // only use to init router for testing
-func (s *unittestServer) Init() {
+func (s *testServer) Init() {
 	s.router = gin.Default()
 	s.initRouter()
 }
 
-func newUnittestServer() *unittestServer {
-	return &unittestServer{realServer: NewServer(&ServerConfig{
-		FrontendBaseURL: "localhost:3000",
-		JWTSecret:       "1232asdasdsd",
-		JWTExpiredHours: 12,
+func newUnittestServer() *testServer {
+	return &testServer{realServer: NewServer(&ServerConfig{
+		AuthConfig: &AuthConfig{
+			JWTSecret:       "1232asdasdsd",
+			JWTExpiredHours: 12,
+		},
 	})}
 }
 
-func initUnittestServer() *unittestServer {
+func initUnittestServer() *testServer {
 	s := newUnittestServer()
 
 	s.Init()

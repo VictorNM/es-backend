@@ -1,7 +1,8 @@
-package memory
+package mock
 
 import (
-	"github.com/victornm/es-backend/pkg/auth/internal"
+	"fmt"
+	"github.com/victornm/es-backend/pkg/auth"
 	"github.com/victornm/es-backend/pkg/store"
 	"github.com/victornm/es-backend/pkg/store/memory"
 )
@@ -10,7 +11,7 @@ type AuthUserRepository struct {
 	gw *memory.UserGateway
 }
 
-func (r *AuthUserRepository) FindUserByID(id int) (*internal.User, error) {
+func (r *AuthUserRepository) FindUserByID(id int) (*auth.User, error) {
 	row, err := r.gw.FindUserByID(id)
 	if err != nil {
 		return nil, err
@@ -19,7 +20,7 @@ func (r *AuthUserRepository) FindUserByID(id int) (*internal.User, error) {
 	return toUserModel(row), nil
 }
 
-func (r *AuthUserRepository) FindUserByEmail(email string) (*internal.User, error) {
+func (r *AuthUserRepository) FindUserByEmail(email string) (*auth.User, error) {
 	row, err := r.gw.FindUserByEmail(email)
 	if err != nil {
 		return nil, err
@@ -28,7 +29,7 @@ func (r *AuthUserRepository) FindUserByEmail(email string) (*internal.User, erro
 	return toUserModel(row), nil
 }
 
-func (r *AuthUserRepository) FindUserByUsername(username string) (*internal.User, error) {
+func (r *AuthUserRepository) FindUserByUsername(username string) (*auth.User, error) {
 	row, err := r.gw.FindUserByUsername(username)
 	if err != nil {
 		return nil, err
@@ -37,7 +38,7 @@ func (r *AuthUserRepository) FindUserByUsername(username string) (*internal.User
 	return toUserModel(row), nil
 }
 
-func (r *AuthUserRepository) CreateUser(u *internal.User) (int, error) {
+func (r *AuthUserRepository) CreateUser(u *auth.User) (int, error) {
 	id, err := r.gw.CreateUser(toUserRow(u))
 	if err != nil {
 		return 0, err
@@ -46,14 +47,27 @@ func (r *AuthUserRepository) CreateUser(u *internal.User) (int, error) {
 	return id, nil
 }
 
+func (r *AuthUserRepository) Seed(users []*auth.User) {
+	for _, u := range users {
+		_, err := r.CreateUser(u)
+		if err != nil {
+			panic(fmt.Sprintf("Seeding repository failed: %v", err))
+		}
+	}
+}
+
+func (r *AuthUserRepository) Clear() {
+	r.gw.Clear()
+}
+
 func NewRepository(gw *memory.UserGateway) *AuthUserRepository {
 	return &AuthUserRepository{
 		gw: gw,
 	}
 }
 
-func toUserModel(row *store.UserRow) *internal.User {
-	return &internal.User{
+func toUserModel(row *store.UserRow) *auth.User {
+	return &auth.User{
 		ID:             row.ID,
 		Email:          row.Email,
 		Username:       row.Username,
@@ -63,10 +77,11 @@ func toUserModel(row *store.UserRow) *internal.User {
 		IsActive:       row.IsActive,
 		IsSuperAdmin:   row.IsSuperAdmin,
 		ActivationKey:  row.ActivationKey,
+		Provider:       row.OAuth2Provider,
 	}
 }
 
-func toUserRow(model *internal.User) *store.UserRow {
+func toUserRow(model *auth.User) *store.UserRow {
 	return &store.UserRow{
 		ID:             model.ID,
 		Email:          model.Email,
@@ -77,5 +92,6 @@ func toUserRow(model *internal.User) *store.UserRow {
 		IsActive:       model.IsActive,
 		IsSuperAdmin:   model.IsSuperAdmin,
 		ActivationKey:  model.ActivationKey,
+		OAuth2Provider: model.Provider,
 	}
 }

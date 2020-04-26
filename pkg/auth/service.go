@@ -2,9 +2,9 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/victornm/es-backend/pkg/auth/internal"
+	"github.com/victornm/es-backend/pkg/errorutil"
 	"time"
 )
 
@@ -30,17 +30,13 @@ type BasicSignInService interface {
 
 type basicSignInService struct {
 	readRepository ReadUserRepository
-
-	// jwt
-	secret  string
-	expired time.Duration
+	jwtService     JWTService
 }
 
-func NewBasicSignInService(repository ReadUserRepository, secret string, expiredHours int) *basicSignInService {
+func NewBasicSignInService(repository ReadUserRepository, jwtService JWTService) *basicSignInService {
 	return &basicSignInService{
 		readRepository: repository,
-		secret:         secret,
-		expired:        time.Duration(expiredHours) * time.Hour,
+		jwtService:     jwtService,
 	}
 }
 
@@ -56,24 +52,40 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 	}
 
 	if err := internal.Validate(input); err != nil {
-		return "", wrapError(ErrInvalidInput, err)
+		return "", errorutil.Wrap(ErrInvalidInput, err)
 	}
 
 	u, err := s.readRepository.FindUserByEmail(email)
 	if err != nil {
-		return "", wrapError(ErrNotAuthenticated, "email")
+		return "", errorutil.Wrap(ErrNotAuthenticated, "email")
 	}
 
 	err = u.ComparePassword(password)
 	if err != nil {
-		return "", wrapError(ErrNotAuthenticated, err)
+		return "", errorutil.Wrap(ErrNotAuthenticated, err)
 	}
 
 	if !u.IsActive {
-		return "", wrapError(ErrNotActivated)
+		return "", errorutil.Wrap(ErrNotActivated)
 	}
 
 	// sign successfully
+	return s.jwtService.GenerateToken(u)
+}
+
+// ===== JWT =====
+
+type JWTService interface {
+	ParseToken(tokenString string) (*UserAuthDTO, error)
+	GenerateToken(u *User) (string, error)
+}
+
+type jwtService struct {
+	secret  string
+	expired time.Duration
+}
+
+func (s *jwtService) GenerateToken(u *User) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(s.expired).Unix(),
@@ -85,23 +97,13 @@ func (s *basicSignInService) BasicSignIn(email, password string) (string, error)
 
 	tokenString, err := token.SignedString([]byte(s.secret))
 	if err != nil {
-		return "", wrapError(ErrUnknown, err)
+		return "", errorutil.Wrap(ErrUnknown, err)
 	}
 
 	return tokenString, nil
 }
 
-// ===== JWT =====
-
-type JWTParserService interface {
-	ParseToken(tokenString string) (*UserAuthDTO, error)
-}
-
-type jwtParserService struct {
-	secret string
-}
-
-func (s *jwtParserService) ParseToken(tokenString string) (*UserAuthDTO, error) {
+func (s *jwtService) ParseToken(tokenString string) (*UserAuthDTO, error) {
 	var claims jwtClaims
 
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (i interface{}, err error) {
@@ -109,7 +111,7 @@ func (s *jwtParserService) ParseToken(tokenString string) (*UserAuthDTO, error) 
 	})
 
 	if err != nil || !token.Valid {
-		return nil, wrapError(ErrNotAuthenticated, err)
+		return nil, errorutil.Wrap(ErrNotAuthenticated, err)
 	}
 
 	return claims.UserAuthDTO, nil
@@ -124,8 +126,11 @@ type jwtClaims struct {
 	*UserAuthDTO
 }
 
-func NewJWTParserService(secret string) *jwtParserService {
-	return &jwtParserService{secret: secret}
+func NewJWTService(secret string, expiredHours int) *jwtService {
+	return &jwtService{
+		secret:  secret,
+		expired: time.Duration(expiredHours) * time.Hour,
+	}
 }
 
 // ===== Register =====
@@ -149,26 +154,26 @@ type registerService struct {
 
 func (s *registerService) Register(input *RegisterInput) error {
 	if err := internal.Validate(input); err != nil {
-		return wrapError(ErrInvalidInput, err)
+		return errorutil.Wrap(ErrInvalidInput, err)
 	}
 
 	if _, err := s.repository.FindUserByEmail(input.Email); err == nil {
-		return wrapError(ErrEmailExisted, input.Email)
+		return errorutil.Wrap(ErrEmailExisted, input.Email)
 	}
 
 	if _, err := s.repository.FindUserByUsername(input.Username); err == nil {
-		return wrapError(ErrUsernameExisted, input.Username)
+		return errorutil.Wrap(ErrUsernameExisted, input.Username)
 	}
 
-	u, err := internal.NewUser(input.Email, input.Password)
+	u, err := NewUser(input.Email, input.Password)
 	if err != nil {
-		return wrapError(ErrUnknown, err)
+		return errorutil.Wrap(ErrUnknown, err)
 	}
 
 	id, err := s.repository.CreateUser(u)
 
 	if err != nil {
-		return wrapError(ErrUnknown, err)
+		return errorutil.Wrap(ErrUnknown, err)
 	}
 
 	time.AfterFunc(time.Millisecond, func() {
@@ -183,25 +188,4 @@ func NewRegisterService(repository UserRepository, sender ActivationEmailSender)
 		repository: repository,
 		sender:     sender,
 	}
-}
-
-func wrapError(err error, msgAndArgs ...interface{}) error {
-	return fmt.Errorf("%w: %s", err, messageFromMsgAndArgs(msgAndArgs))
-}
-
-func messageFromMsgAndArgs(msgAndArgs ...interface{}) string {
-	if len(msgAndArgs) == 0 {
-		return ""
-	}
-	if len(msgAndArgs) == 1 {
-		msg := msgAndArgs[0]
-		if msgAsStr, ok := msg.(string); ok {
-			return msgAsStr
-		}
-		return fmt.Sprintf("%+v", msg)
-	}
-	if len(msgAndArgs) > 1 {
-		return fmt.Sprintf(msgAndArgs[0].(string), msgAndArgs[1:]...)
-	}
-	return ""
 }
