@@ -1,12 +1,13 @@
 package api
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/victornm/es-backend/pkg/auth"
 	"github.com/victornm/es-backend/pkg/auth/mock"
 	"github.com/victornm/es-backend/pkg/store/memory"
-	"net/http"
-	"strings"
 )
 
 type AuthConfig struct {
@@ -163,7 +164,7 @@ func (s *realServer) createBasicSignInService() auth.BasicSignInService {
 
 func (s *realServer) createRegisterService() auth.RegisterService {
 	repository := createAuthUserRepository(s)
-	return auth.NewRegisterService(repository, auth.NewConsoleSender(repository, s.config.FrontendBaseURL))
+	return auth.NewRegisterService(repository, auth.NewActivationEmailSender(repository, s.config.FrontendBaseURL+"/activate"))
 }
 
 func (s *realServer) createOAuth2RegisterService() auth.OAuth2RegisterService {

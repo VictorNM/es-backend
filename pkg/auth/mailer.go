@@ -1,34 +1,45 @@
 package auth
 
 import (
-	"fmt"
 	"path"
 )
+
+type sender interface {
+	Send(tmpl string, data interface{}, to []string) error
+}
 
 type ActivationEmailSender interface {
 	SendActivationEmail(userID int)
 }
 
-// consoleSender simulate sending email by print to stdin
-type consoleSender struct {
+type activationEmailSender struct {
+	s          sender
 	repository ReadUserRepository
-	baseURL    string
+	path       string
 }
 
-func (sender *consoleSender) SendActivationEmail(userID int) {
+func (sender *activationEmailSender) SendActivationEmail(userID int) {
 	u, err := sender.repository.FindUserByID(userID)
 	if err != nil {
 		return
 	}
 
-	// TODO: review this, may be replace with some Go libs
-	link := path.Join(sender.baseURL, "activate", u.ActivationKey)
+	link := path.Join(sender.path, u.ActivationKey)
 
-	fmt.Printf("Click to %q to activate your account", link)
+	const tpl = `<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Activate for email</title>
+	</head>
+	<body>
+		<div>{{ .link }}</div>
+	</body>
+</html>`
 
-	return
+	_ = sender.s.Send(tpl, map[string]string{"link": link}, []string{u.Email})
 }
 
-func NewConsoleSender(repository ReadUserRepository, baseURL string) *consoleSender {
-	return &consoleSender{repository: repository, baseURL: baseURL}
+func NewActivationEmailSender(repository ReadUserRepository, path string) *activationEmailSender {
+	return &activationEmailSender{repository: repository, path: path}
 }
