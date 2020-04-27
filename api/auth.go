@@ -167,7 +167,7 @@ func (s *realServer) createRegisterService() auth.RegisterService {
 }
 
 func (s *realServer) createOAuth2RegisterService() auth.OAuth2RegisterService {
-	return auth.NewOAuth2RegisterService(createAuthUserRepository(s), createOAuth2ClientFactory(s), )
+	return auth.NewOAuth2RegisterService(createAuthUserRepository(s), createOAuth2ClientFactory(s))
 }
 
 func (s *realServer) createOAuth2SignInService() auth.OAuth2SignInService {

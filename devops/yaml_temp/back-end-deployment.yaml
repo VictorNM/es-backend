@@ -15,18 +15,18 @@ spec:                                             # Spec for the container which
         app: es-backend
     spec:
       imagePullSecrets:
-      - name: es-dev-us-icr-io
+        - name: es-dev-us-icr-io
       containers:
-      - name: es-backend
-        image: us.icr.io/esregistry/esbackend:%IMAGE_VERSION%       # The image we are getting from ibmcloud registry
-        imagePullPolicy: IfNotPresent             # If we have not pulled it before, get it from ibmcloud registry
-        ports:
-          - name: http
-            containerPort: 80                     # Should match the port number that the Go application listens on
-        env:
-        - name: HTTP_PORT
-          value: "80"
-        - name: SECRET
-          value: "z91NRBxicpx2qjvO"
-        - name: TOKEN_EXPIRED_HOURS
-          value: "24"
+        - name: es-backend
+          image: us.icr.io/esregistry/esbackend:%IMAGE_VERSION%       # The image we are getting from ibmcloud registry
+          imagePullPolicy: IfNotPresent             # If we have not pulled it before, get it from ibmcloud registry
+          ports:
+            - name: http
+              containerPort: 80                     # Should match the port number that the Go application listens on
+          env:
+            - name: HTTP_PORT
+              value: "80"
+            - name: SECRET
+              value: "z91NRBxicpx2qjvO"
+            - name: TOKEN_EXPIRED_HOURS
+              value: "24"

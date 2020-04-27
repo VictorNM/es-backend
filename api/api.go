@@ -126,8 +126,6 @@ func (s *realServer) connectDB() {
 		log.Fatalf("invalid SQL URL %v", err)
 	}
 
-	log.Println(u.Scheme)
-
 	db, err := sqlx.Open(u.Scheme, s.config.SqlConnString)
 	if err != nil {
 		log.Fatalf("open database failed: %v", err)
