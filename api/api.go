@@ -1,11 +1,12 @@
 package api
 
 import (
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

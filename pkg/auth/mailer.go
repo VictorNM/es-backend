@@ -1,20 +1,17 @@
 package auth
 
 import (
+	"html/template"
 	"path"
 )
 
-type sender interface {
-	Send(tmpl string, data interface{}, to []string) error
-}
-
-type ActivationEmailSender interface {
-	SendActivationEmail(userID int)
+type Mailer interface {
+	Send(subject string, tmpl string, data interface{}, to []string) error
 }
 
 type activationEmailSender struct {
-	s          sender
-	repository ReadUserRepository
+	mailer     Mailer
+	repository UserRepository
 	path       string
 }
 
@@ -33,13 +30,9 @@ func (sender *activationEmailSender) SendActivationEmail(userID int) {
 		<title>Activate for email</title>
 	</head>
 	<body>
-		<div>{{ .link }}</div>
+		<a href="{{ .link }}">Click here to activate your email</a>
 	</body>
 </html>`
 
-	_ = sender.s.Send(tpl, map[string]string{"link": link}, []string{u.Email})
-}
-
-func NewActivationEmailSender(repository ReadUserRepository, path string) *activationEmailSender {
-	return &activationEmailSender{repository: repository, path: path}
+	_ = sender.mailer.Send("Activate your email!", tpl, map[string]interface{}{"link": template.URL(link)}, []string{u.Email})
 }

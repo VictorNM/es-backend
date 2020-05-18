@@ -2,20 +2,27 @@ package mailer
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"net/smtp"
+
+	"gopkg.in/gomail.v2"
 )
 
 type Mailer struct {
+	auth   smtp.Auth
+	dialer *gomail.Dialer
+
 	host              string
 	port              int
 	account, password string
 	from              string
 }
 
-func NewMailer(host string, port int, account, password string, from string) *Mailer {
+func New(host string, port int, account, password string, from string) *Mailer {
 	return &Mailer{
+		auth:   smtp.PlainAuth("", account, password, host),
+		dialer: gomail.NewDialer(host, port, account, password),
+
 		host:     host,
 		port:     port,
 		account:  account,
@@ -24,17 +31,18 @@ func NewMailer(host string, port int, account, password string, from string) *Ma
 	}
 }
 
-func (m *Mailer) Send(tmpl string, data interface{}, to []string) error {
-	a := smtp.PlainAuth("", m.account, m.password, m.host)
-
-	msg, err := parseTemplate(tmpl, data)
+func (m *Mailer) Send(subject string, tmpl string, data interface{}, to []string) error {
+	msg := gomail.NewMessage()
+	msg.SetHeader("From", m.from)
+	msg.SetHeader("To", to...)
+	msg.SetHeader("Subject", subject)
+	body, err := parseTemplate(tmpl, data)
 	if err != nil {
 		return err
 	}
+	msg.SetBody("text/html", string(body))
 
-	addr := fmt.Sprintf("%s:%d", m.host, m.port)
-	err = smtp.SendMail(addr, a, m.from, to, msg)
-	if err != nil {
+	if err := m.dialer.DialAndSend(msg); err != nil {
 		return err
 	}
 
