@@ -1,11 +1,12 @@
 package api
 
 import (
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -125,8 +126,6 @@ func (s *realServer) connectDB() {
 	if err != nil {
 		log.Fatalf("invalid SQL URL %v", err)
 	}
-
-	log.Println(u.Scheme)
 
 	db, err := sqlx.Open(u.Scheme, s.config.SqlConnString)
 	if err != nil {

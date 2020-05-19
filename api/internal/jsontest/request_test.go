@@ -382,7 +382,7 @@ func TestParam(t *testing.T) {
 		"less param than template": {
 			template: "/users/:id/courses/:course_name",
 			param: map[string]interface{}{
-				"id":          1,
+				"id": 1,
 			},
 
 			wantedPath: "/users/1/courses/:course_name",
@@ -391,7 +391,7 @@ func TestParam(t *testing.T) {
 		"similar key name": {
 			template: "/users/:id/:id_string",
 			param: map[string]interface{}{
-				"id":         1,
+				"id":        1,
 				"id_string": "cs50",
 			},
 

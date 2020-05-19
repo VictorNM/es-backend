@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 type User struct {
@@ -19,13 +21,22 @@ type User struct {
 	CreatedAt      time.Time
 }
 
-func (u *User) ComparePassword(password string) error {
+type UserAuthDTO struct {
+	UserID int `json:"user_id"`
+}
+
+type jwtClaims struct {
+	jwt.StandardClaims
+	*UserAuthDTO
+}
+
+func (u *User) comparePassword(password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(u.HashedPassword), []byte(password))
 }
 
 // TODO: Add Username, FullName
 func NewUser(email, password string) (*User, error) {
-	hashed, err := HashPassword(password)
+	hashed, err := hashPassword(password)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +59,7 @@ func NewOAuth2User(email, provider string) *User {
 	}
 }
 
-func HashPassword(password string) (string, error) {
+func hashPassword(password string) (string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err

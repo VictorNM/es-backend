@@ -1,22 +1,12 @@
 package auth_test
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	. "github.com/victornm/es-backend/pkg/auth"
 	"github.com/victornm/es-backend/pkg/auth/mock"
-	memoryGateway "github.com/victornm/es-backend/pkg/store/memory"
-	"testing"
 )
-
-func TestOAuth2ConfigFactory(t *testing.T) {
-	factory := NewOAuth2ClientFactory(NewGoogleProvider("1234", ""))
-
-	_, err := factory.Provider("facebook")
-	assertIsError(t, ErrInvalidOAuth2Provider, err)
-
-	_, err = factory.Provider("google")
-	assert.NoError(t, err)
-}
 
 func TestOAuth2Register(t *testing.T) {
 	providerName := mock.ProviderName
@@ -29,7 +19,7 @@ func TestOAuth2Register(t *testing.T) {
 		{
 			Email:          "admin@es.com",
 			Username:       "admin",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 		},
 	}
 
@@ -61,12 +51,14 @@ func TestOAuth2Register(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			provider := mock.NewOAuth2Provider()
 			provider.Seed(usersFromProvider)
-			factory := NewOAuth2ClientFactory(provider)
 
-			repository := mock.NewRepository(memoryGateway.NewUserGateway())
+			repository := newUserRepository()
 			repository.Seed(usersInDB)
 
-			s := NewOAuth2RegisterService(repository, factory)
+			s := NewOAuth2Service(&OAuth2Config{
+				UserRepository: repository,
+				Providers:      []OAuth2Provider{provider},
+			})
 
 			err := s.OAuth2Register(OAuth2Input{
 				Provider: providerName,
@@ -96,7 +88,7 @@ func TestOAuth2SignIn(t *testing.T) {
 		{
 			Email:          "admin@es.com",
 			Username:       "admin",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 			IsActive:       true,
 			Provider:       providerName,
 		},
@@ -104,7 +96,7 @@ func TestOAuth2SignIn(t *testing.T) {
 		{
 			Email:          "not_activated@es.com",
 			Username:       "not_activated",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 			IsActive:       false,
 			Provider:       providerName,
 		},
@@ -112,7 +104,7 @@ func TestOAuth2SignIn(t *testing.T) {
 		{
 			Email:          "provider_not_match@es.com",
 			Username:       "provider_not_match",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 			IsActive:       false,
 			Provider:       "anotherProvider",
 		},
@@ -152,12 +144,15 @@ func TestOAuth2SignIn(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			provider := mock.NewOAuth2Provider()
 			provider.Seed(usersFromProvider)
-			factory := NewOAuth2ClientFactory(provider)
 
-			repository := mock.NewRepository(memoryGateway.NewUserGateway())
+			repository := newUserRepository()
 			repository.Seed(usersInDB)
 
-			s := NewOAuth2SignInService(repository, factory, NewJWTService("1234", 1))
+			s := NewOAuth2Service(&OAuth2Config{
+				UserRepository: repository,
+				Providers:      []OAuth2Provider{provider},
+				JWTService:     NewJWTService("1234", 1),
+			})
 
 			token, err := s.OAuth2SignIn(OAuth2Input{
 				Provider: providerName,

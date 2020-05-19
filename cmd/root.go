@@ -59,8 +59,6 @@ func newRootCommand() *cobra.Command {
 			cmd.Flags().
 				StringVar(&config.OAuth2GoogleClientSecret, "oauth2-google-client-secret", defaultConfig.oauth2GoogleClientSecret, "connection string to database")
 
-			log.Printf("Init server with config: %+v\n", config)
-
 			s := api.NewServer(config)
 			s.Init()
 			log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", httpPort), s))

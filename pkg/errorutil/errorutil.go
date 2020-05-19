@@ -22,4 +22,3 @@ func messageFromMsgAndArgs(msgAndArgs ...interface{}) string {
 	}
 	return ""
 }
-

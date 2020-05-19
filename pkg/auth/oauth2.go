@@ -2,23 +2,33 @@ package auth
 
 import (
 	"context"
-	"errors"
+	"strings"
+
 	"github.com/victornm/es-backend/pkg/errorutil"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	googleOAuth2 "google.golang.org/api/oauth2/v2"
 	"google.golang.org/api/option"
-	"strings"
 )
 
-var ErrInvalidOAuth2Provider = errors.New("oauth2 provider not supported")
-
-type OAuth2RegisterService interface {
+type OAuth2Service interface {
 	OAuth2Register(input OAuth2Input) error
+	OAuth2SignIn(input OAuth2Input) (string, error)
 }
 
-type OAuth2SignInService interface {
-	OAuth2SignIn(input OAuth2Input) (string, error)
+type OAuth2Config struct {
+	UserRepository UserRepository
+	JWTService     JWTService
+
+	Providers []OAuth2Provider
+}
+
+func NewOAuth2Service(config *OAuth2Config) OAuth2Service {
+	return &oauth2Service{
+		userRepository: config.UserRepository,
+		factory:        newProviderFactory(config.Providers...),
+		jwtService:     config.JWTService,
+	}
 }
 
 type OAuth2Provider interface {
@@ -26,11 +36,9 @@ type OAuth2Provider interface {
 	GetUser(code string) (*User, error)
 }
 
-type OAuth2ProviderFactory map[string]OAuth2Provider
-
 type oauth2Service struct {
 	userRepository UserRepository
-	factory        OAuth2ProviderFactory
+	factory        providerFactory
 	jwtService     JWTService
 }
 
@@ -40,9 +48,9 @@ type OAuth2Input struct {
 }
 
 func (s *oauth2Service) OAuth2Register(input OAuth2Input) error {
-	client, err := s.factory.Provider(input.Provider)
-	if err != nil {
-		return err
+	client, ok := s.factory.getProvider(input.Provider)
+	if !ok {
+		return errorutil.Wrap(ErrInvalidOAuth2Provider)
 	}
 
 	u, err := client.GetUser(input.Code)
@@ -64,9 +72,9 @@ func (s *oauth2Service) OAuth2Register(input OAuth2Input) error {
 }
 
 func (s *oauth2Service) OAuth2SignIn(input OAuth2Input) (string, error) {
-	client, err := s.factory.Provider(input.Provider)
-	if err != nil {
-		return "", err
+	client, ok := s.factory.getProvider(input.Provider)
+	if !ok {
+		return "", errorutil.Wrap(ErrInvalidOAuth2Provider)
 	}
 
 	u, err := client.GetUser(input.Code)
@@ -87,26 +95,11 @@ func (s *oauth2Service) OAuth2SignIn(input OAuth2Input) (string, error) {
 		return "", errorutil.Wrap(ErrNotActivated)
 	}
 
-	return s.jwtService.GenerateToken(user)
+	return s.jwtService.generateToken(user)
 }
 
-func NewOAuth2RegisterService(userRepository UserRepository, factory OAuth2ProviderFactory) OAuth2RegisterService {
-	return &oauth2Service{
-		factory:        factory,
-		userRepository: userRepository,
-	}
-}
-
-func NewOAuth2SignInService(userRepository UserRepository, factory OAuth2ProviderFactory, jwtService JWTService) OAuth2SignInService {
-	return &oauth2Service{
-		factory:        factory,
-		userRepository: userRepository,
-		jwtService:     jwtService,
-	}
-}
-
-func NewOAuth2ClientFactory(providers ...OAuth2Provider) OAuth2ProviderFactory {
-	f := OAuth2ProviderFactory{}
+func newProviderFactory(providers ...OAuth2Provider) providerFactory {
+	f := providerFactory{}
 
 	for _, p := range providers {
 		f.setProvider(p)
@@ -115,15 +108,17 @@ func NewOAuth2ClientFactory(providers ...OAuth2Provider) OAuth2ProviderFactory {
 	return f
 }
 
-func (f OAuth2ProviderFactory) Provider(provider string) (OAuth2Provider, error) {
+type providerFactory map[string]OAuth2Provider
+
+func (f providerFactory) getProvider(provider string) (OAuth2Provider, bool) {
 	if s, ok := f[strings.ToLower(provider)]; ok {
-		return s, nil
+		return s, true
 	}
 
-	return nil, ErrInvalidOAuth2Provider
+	return nil, false
 }
 
-func (f OAuth2ProviderFactory) setProvider(provider OAuth2Provider) {
+func (f providerFactory) setProvider(provider OAuth2Provider) {
 	f[strings.ToLower(provider.Name())] = provider
 }
 

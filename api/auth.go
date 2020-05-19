@@ -1,12 +1,16 @@
 package api
 
 import (
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/victornm/es-backend/pkg/mailer"
+
 	"github.com/gin-gonic/gin"
 	"github.com/victornm/es-backend/pkg/auth"
 	"github.com/victornm/es-backend/pkg/auth/mock"
 	"github.com/victornm/es-backend/pkg/store/memory"
-	"net/http"
-	"strings"
 )
 
 type AuthConfig struct {
@@ -25,7 +29,7 @@ type AuthConfig struct {
 // @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "Not authenticated"
 // @Router /users/sign-in [post]
 func (s *realServer) createSignInHandler() gin.HandlerFunc {
-	authService := s.createBasicSignInService()
+	authService := s.createAuthService()
 
 	return func(c *gin.Context) {
 		email, password, ok := c.Request.BasicAuth()
@@ -57,7 +61,7 @@ type authToken struct {
 // @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
 // @Router /users/register [post]
 func (s *realServer) createRegisterHandler() gin.HandlerFunc {
-	service := s.createRegisterService()
+	service := s.createAuthService()
 
 	return func(c *gin.Context) {
 		var input *auth.RegisterInput
@@ -84,7 +88,7 @@ func (s *realServer) createRegisterHandler() gin.HandlerFunc {
 // @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
 // @Router /oauth2/register [post]
 func (s *realServer) createOauth2RegisterHandler() gin.HandlerFunc {
-	service := s.createOAuth2RegisterService()
+	service := s.createAuthOAuth2Service()
 
 	return func(c *gin.Context) {
 		var input auth.OAuth2Input
@@ -113,7 +117,7 @@ func (s *realServer) createOauth2RegisterHandler() gin.HandlerFunc {
 // @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "Not authenticated"
 // @Router /oauth2/sign-in [post]
 func (s *realServer) createOauth2SignInHandler() gin.HandlerFunc {
-	service := s.createOAuth2SignInService()
+	service := s.createAuthOAuth2Service()
 
 	return func(c *gin.Context) {
 		var input auth.OAuth2Input
@@ -157,21 +161,26 @@ func (s *realServer) createJWTService() auth.JWTService {
 	return auth.NewJWTService(s.config.JWTSecret, s.config.JWTExpiredHours)
 }
 
-func (s *realServer) createBasicSignInService() auth.BasicSignInService {
-	return auth.NewBasicSignInService(createAuthUserRepository(s), s.createJWTService())
+func (s *realServer) createAuthService() auth.Service {
+	return auth.New(&auth.Config{
+		UserRepository: createAuthUserRepository(s),
+		Mailer:         createMailer(s),
+		JWTService:     s.createJWTService(),
+		ActivateURL:    s.config.FrontendBaseURL + "/activate",
+	})
 }
 
-func (s *realServer) createRegisterService() auth.RegisterService {
-	repository := createAuthUserRepository(s)
-	return auth.NewRegisterService(repository, auth.NewConsoleSender(repository, s.config.FrontendBaseURL))
-}
-
-func (s *realServer) createOAuth2RegisterService() auth.OAuth2RegisterService {
-	return auth.NewOAuth2RegisterService(createAuthUserRepository(s), createOAuth2ClientFactory(s), )
-}
-
-func (s *realServer) createOAuth2SignInService() auth.OAuth2SignInService {
-	return auth.NewOAuth2SignInService(createAuthUserRepository(s), createOAuth2ClientFactory(s), s.createJWTService())
+func (s *realServer) createAuthOAuth2Service() auth.OAuth2Service {
+	return auth.NewOAuth2Service(&auth.OAuth2Config{
+		UserRepository: createAuthUserRepository(s),
+		JWTService:     s.createJWTService(),
+		Providers: []auth.OAuth2Provider{
+			auth.NewGoogleProvider(
+				s.config.OAuth2GoogleClientID,
+				s.config.OAuth2GoogleClientSecret,
+			),
+		},
+	})
 }
 
 // TODO: Change to real repository
@@ -179,9 +188,8 @@ var createAuthUserRepository = func(s *realServer) auth.UserRepository {
 	return mock.NewRepository(memory.GlobalUserStore)
 }
 
-var createOAuth2ClientFactory = func(s *realServer) auth.OAuth2ProviderFactory {
-	return auth.NewOAuth2ClientFactory(auth.NewGoogleProvider(
-		s.config.OAuth2GoogleClientID,
-		s.config.OAuth2GoogleClientSecret,
-	))
+var createMailer = func(s *realServer) *mailer.Mailer {
+	account := os.Getenv("MAIL_ACCOUNT")
+	password := os.Getenv("MAIL_PASSWORD")
+	return mailer.New("smtp.gmail.com", 587, account, password, account)
 }
