@@ -3,7 +3,7 @@ CREATE TABLE users
     id              int generated always as identity,
     email           varchar(255) unique,
     username        varchar(255) unique,
-    hashed_password varchar(255) not null,
+    hashed_password varchar(255),
     full_name       varchar(255) not null,
     phone           varchar(13),
     year_of_birth   integer,

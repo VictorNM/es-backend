@@ -1,4 +1,3 @@
-basePath: /api
 definitions:
   api.BaseResponse:
     properties:
@@ -21,7 +20,14 @@ definitions:
       token:
         type: string
     type: object
-  auth.RegisterMutation:
+  auth.OAuth2Input:
+    properties:
+      code:
+        type: string
+      provider:
+        type: string
+    type: object
+  auth.RegisterInput:
     properties:
       email:
         type: string
@@ -34,11 +40,11 @@ definitions:
       username:
         type: string
     required:
-    - email
-    - full_name
-    - password
-    - password_confirmation
-    - username
+      - email
+      - full_name
+      - password
+      - password_confirmation
+      - username
     type: object
   user.ProfileDTO:
     properties:
@@ -61,20 +67,15 @@ definitions:
       year_of_birth:
         type: integer
     type: object
-host: localhost:8080
 info:
-  contact:
-    name: VictorNM
-    url: https://github.com/VictorNM/
+  contact: {}
   license: {}
-  title: ES API
-  version: "1.0"
 paths:
   /api/ping:
     get:
       description: For testing
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: PING PONG
@@ -82,37 +83,19 @@ paths:
             $ref: '#/definitions/api.BaseResponse'
       summary: PING PONG
       tags:
-      - ping
-  /users/profile:
-    get:
-      description: Get profile by user_id in token,
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Get profile successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.BaseResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/user.ProfileDTO'
-              type: object
-      summary: Get current sign-inned user's profile
-      tags:
-      - user
-  /users/register:
+        - ping
+  /oauth2/register:
     post:
-      description: Register using email and password
+      description: Register using oauth2
       parameters:
-      - description: Register new user
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/auth.RegisterMutation'
+        - description: Register new user using oauth2
+          in: body
+          name: user
+          required: true
+          schema:
+            $ref: '#/definitions/auth.OAuth2Input'
       produces:
-      - application/json
+        - application/json
       responses:
         "201":
           description: Register successfully
@@ -122,46 +105,128 @@ paths:
           description: Bad request
           schema:
             allOf:
-            - $ref: '#/definitions/api.BaseResponse'
-            - properties:
-                errors:
-                  items:
-                    $ref: '#/definitions/api.Error'
-                  type: array
-              type: object
-      summary: Register using email and password
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  errors:
+                    items:
+                      $ref: '#/definitions/api.Error'
+                    type: array
+                type: object
+      summary: Register using oauth2
       tags:
-      - auth
-  /users/sign-in:
+        - auth
+  /oauth2/sign-in:
     post:
-      description: Sign in using email and password
+      description: Sign in using oauth2
+      parameters:
+        - description: Sign in using oauth2
+          in: body
+          name: user
+          required: true
+          schema:
+            $ref: '#/definitions/auth.OAuth2Input'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: Sign in successfully
           schema:
             allOf:
-            - $ref: '#/definitions/api.BaseResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/api.authToken'
-              type: object
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  data:
+                    $ref: '#/definitions/api.authToken'
+                type: object
         "401":
           description: Not authenticated
           schema:
             allOf:
-            - $ref: '#/definitions/api.BaseResponse'
-            - properties:
-                errors:
-                  items:
-                    $ref: '#/definitions/api.Error'
-                  type: array
-              type: object
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  errors:
+                    items:
+                      $ref: '#/definitions/api.Error'
+                    type: array
+                type: object
+      summary: Sign in using oauth2
+      tags:
+        - auth
+  /users/profile:
+    get:
+      description: Get profile by user_id in token,
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Get profile successfully
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  data:
+                    $ref: '#/definitions/user.ProfileDTO'
+                type: object
+      summary: Get current sign-inned user's profile
+      tags:
+        - user
+  /users/register:
+    post:
+      description: Register using email and password
+      parameters:
+        - description: Register new user
+          in: body
+          name: user
+          required: true
+          schema:
+            $ref: '#/definitions/auth.RegisterInput'
+      produces:
+        - application/json
+      responses:
+        "201":
+          description: Register successfully
+          schema:
+            $ref: '#/definitions/api.BaseResponse'
+        "400":
+          description: Bad request
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  errors:
+                    items:
+                      $ref: '#/definitions/api.Error'
+                    type: array
+                type: object
+      summary: Register using email and password
+      tags:
+        - auth
+  /users/sign-in:
+    post:
+      description: Sign in using email and password
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Sign in successfully
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  data:
+                    $ref: '#/definitions/api.authToken'
+                type: object
+        "401":
+          description: Not authenticated
+          schema:
+            allOf:
+              - $ref: '#/definitions/api.BaseResponse'
+              - properties:
+                  errors:
+                    items:
+                      $ref: '#/definitions/api.Error'
+                    type: array
+                type: object
       summary: Basic sign in using email, password
       tags:
-      - auth
-securityDefinitions:
-  BasicAuth:
-    type: basic
+        - auth
 swagger: "2.0"

@@ -2,7 +2,7 @@ package memory
 
 import (
 	"errors"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"strings"
@@ -10,10 +10,11 @@ import (
 	"time"
 )
 
-var UserStore *userStore
+var GlobalUserStore *UserGateway
 
 func init() {
-	UserStore = NewUserStore()
+	GlobalUserStore = NewUserGateway()
+	GlobalUserStore.Seed(fixedUsers)
 }
 
 var fixedUsers = []*store.UserRow{
@@ -45,17 +46,17 @@ func genPassword(password string) string {
 	return string(hashed)
 }
 
-type userStore struct {
-	mu        sync.RWMutex
+type UserGateway struct {
+	mu        *sync.Mutex
 	currentID int
 	users     []*store.UserRow
 }
 
-func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
-	dao.mu.Lock()
-	defer dao.mu.Unlock()
+func (gw *UserGateway) FindUserByEmail(email string) (*store.UserRow, error) {
+	gw.mu.Lock()
+	defer gw.mu.Unlock()
 
-	for _, u := range dao.users {
+	for _, u := range gw.users {
 		if strings.ToLower(u.Email) == strings.ToLower(email) {
 			return u, nil
 		}
@@ -63,11 +64,11 @@ func (dao *userStore) FindUserByEmail(email string) (*store.UserRow, error) {
 	return nil, errors.New("user not found")
 }
 
-func (dao *userStore) FindUserByUsername(username string) (*store.UserRow, error) {
-	dao.mu.Lock()
-	defer dao.mu.Unlock()
+func (gw *UserGateway) FindUserByUsername(username string) (*store.UserRow, error) {
+	gw.mu.Lock()
+	defer gw.mu.Unlock()
 
-	for _, u := range dao.users {
+	for _, u := range gw.users {
 		if strings.ToLower(u.Username) == strings.ToLower(username) {
 			return u, nil
 		}
@@ -75,11 +76,11 @@ func (dao *userStore) FindUserByUsername(username string) (*store.UserRow, error
 	return nil, errors.New("user not found")
 }
 
-func (dao *userStore) FindUserByID(id int) (*store.UserRow, error) {
-	dao.mu.Lock()
-	defer dao.mu.Unlock()
+func (gw *UserGateway) FindUserByID(id int) (*store.UserRow, error) {
+	gw.mu.Lock()
+	defer gw.mu.Unlock()
 
-	for _, u := range dao.users {
+	for _, u := range gw.users {
 		if u.ID == id {
 			return u, nil
 		}
@@ -87,32 +88,40 @@ func (dao *userStore) FindUserByID(id int) (*store.UserRow, error) {
 	return nil, errors.New("user not found")
 }
 
-func (dao *userStore) CreateUser(u *store.UserRow) (int, error) {
-	dao.mu.Lock()
-	defer dao.mu.Unlock()
+func (gw *UserGateway) CreateUser(u *store.UserRow) (int, error) {
+	gw.mu.Lock()
+	defer gw.mu.Unlock()
 
-	for _, row := range dao.users {
+	for _, row := range gw.users {
 		if u.Email == row.Email {
 			return 0, errors.New("email existed")
 		}
 	}
 
-	dao.currentID++
-	u.ID = dao.currentID
+	gw.currentID++
+	u.ID = gw.currentID
 	u.CreatedAt = time.Now()
-	dao.users = append(dao.users, u)
+	gw.users = append(gw.users, u)
 
 	return u.ID, nil
 }
 
-func NewUserStore() *userStore {
-	s := &userStore{currentID: 0}
-	for _, u := range fixedUsers {
-		_, err := s.CreateUser(u)
+func (gw *UserGateway) Seed(users []*store.UserRow) {
+	for _, u := range users {
+		_, err := gw.CreateUser(u)
 		if err != nil {
-			log.Fatalf("init memory user store failed: %v", err)
+			log.Panicf("seeding memory user failed: %v", err)
 		}
 	}
 
-	return s
+	return
+}
+
+func (gw *UserGateway) Clear() {
+	gw.currentID = 0
+	gw.users = nil
+}
+
+func NewUserGateway() *UserGateway {
+	return &UserGateway{currentID: 0, mu: new(sync.Mutex)}
 }

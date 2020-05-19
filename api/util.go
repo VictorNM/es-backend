@@ -3,7 +3,7 @@ package api
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/auth"
+	"github.com/victornm/es-backend/pkg/auth"
 	"log"
 )
 
@@ -17,7 +17,7 @@ type BaseResponse struct {
 	Data   interface{} `json:"data"`
 }
 
-func reject(c *gin.Context, code int, errs ...error) {
+func toErrList(errs ...error) []Error {
 	errList := make([]Error, len(errs))
 	for i, err := range errs {
 		if err == nil {
@@ -38,8 +38,21 @@ func reject(c *gin.Context, code int, errs ...error) {
 		}
 	}
 
+	return errList
+}
+
+func reject(c *gin.Context, code int, errs ...error) {
 	c.JSON(code, &BaseResponse{
-		Errors: errList,
+		Errors: toErrList(errs...),
+		Data:   nil,
+	})
+}
+
+// TODO: merge reject and abort
+// abort should be use instead of reject in a middleware to prevent passing request to other handler
+func abort(c *gin.Context, code int, errs ...error) {
+	c.AbortWithStatusJSON(code, &BaseResponse{
+		Errors: toErrList(errs...),
 		Data:   nil,
 	})
 }

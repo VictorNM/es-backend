@@ -1,28 +1,35 @@
-package auth
+package auth_test
 
 import (
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/victornm/es-backend/store"
-	"log"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/stretchr/testify/assert"
+	. "github.com/victornm/es-backend/pkg/auth"
+	"github.com/victornm/es-backend/pkg/auth/mock"
+	gatewayMemory "github.com/victornm/es-backend/pkg/store/memory"
 )
 
-func TestBasicLogin(t *testing.T) {
-	userInDB := []*store.UserRow{
+func newUserRepository() *mock.AuthUserRepository {
+	return mock.NewRepository(gatewayMemory.NewUserGateway())
+}
+
+func TestBasicSignIn(t *testing.T) {
+	userInDB := []*User{
 		{
 			Email:          "victornm@es.com",
 			Username:       "victornm@es.com",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 			IsActive:       true,
 		},
 		{
 			Email:          "nguyenmauvinh@es.com",
 			Username:       "nguyenmauvinh@es.com",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 			IsActive:       false,
 		},
 	}
@@ -56,58 +63,26 @@ func TestBasicLogin(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			withoutValidate(func() {
-				dao := newMockUserDao()
-				dao.seed(userInDB)
+			repository := newUserRepository()
+			repository.Seed(userInDB)
 
-				s := NewBasicSignInService(NewRepository(dao), "#12345", 24)
-				_, err := s.BasicSignIn(test.email, test.password)
-				assertIsError(t, test.wantedErr, err)
-
-				log.Println(err)
+			s := New(&Config{
+				UserRepository: repository,
+				JWTService:     NewJWTService("#12345", 24),
 			})
+
+			_, err := s.BasicSignIn(test.email, test.password)
+			assertIsError(t, test.wantedErr, err)
 		})
 	}
 }
 
-func TestParseToken(t *testing.T) {
-	usersInDB := []*store.UserRow{
-		{
-			Email:          "victornm@es.com",
-			HashedPassword: mustHashPassword("1234abcd"),
-			IsActive:       true,
-		},
-	}
-
-	t.Run("receive valid token", func(t *testing.T) {
-		dao := newMockUserDao()
-		dao.seed(usersInDB)
-
-		u := dao.users[0]
-		secret := "#12345"
-
-		s := NewBasicSignInService(NewRepository(dao), secret, 24)
-		tokenString, err := s.BasicSignIn(u.Email, "1234abcd")
-		if err != nil {
-			t.FailNow()
-		}
-
-		parser := NewJWTParserService(secret)
-
-		userAuth, err := parser.ParseToken(tokenString)
-		assert.NoError(t, err)
-		assert.Equal(t, u.ID, userAuth.UserID)
-	})
-}
-
-// ===== Register =====
-
 func TestRegister(t *testing.T) {
-	usersInDB := []*store.UserRow{
+	usersInDB := []*User{
 		{
 			Email:          "victornm@es.com",
 			Username:       "victorNM",
-			HashedPassword: mustHashPassword("1234abcd"),
+			HashedPassword: MustHashPassword("1234abcd"),
 		},
 	}
 
@@ -122,6 +97,7 @@ func TestRegister(t *testing.T) {
 				Username:             "newUser",
 				Password:             "1234abcd",
 				PasswordConfirmation: "1234abcd",
+				FullName:             "VictorNM",
 			},
 			wantedErr: nil,
 		},
@@ -132,6 +108,7 @@ func TestRegister(t *testing.T) {
 				Username:             "newUser",
 				Password:             "1234abcd",
 				PasswordConfirmation: "1234abcd",
+				FullName:             "VictorNM",
 			},
 			wantedErr: ErrEmailExisted,
 		},
@@ -142,6 +119,7 @@ func TestRegister(t *testing.T) {
 				Username:             "victornm",
 				Password:             "1234abcd",
 				PasswordConfirmation: "1234abcd",
+				FullName:             "VictorNM",
 			},
 			wantedErr: ErrUsernameExisted,
 		},
@@ -149,72 +127,57 @@ func TestRegister(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			withoutValidate(func() {
-				// given
-				dao := newMockUserDao()
-				dao.seed(usersInDB)
-				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
+			// given
+			repository := newUserRepository()
+			repository.Seed(usersInDB)
 
-				// when
-				err := s.Register(test.input)
-
-				// then
-				assertIsError(t, test.wantedErr, err)
+			s := New(&Config{
+				UserRepository: repository,
+				Mailer:         &mock.Mailer{},
+				ActivateURL:    "/activate",
 			})
+
+			// when
+			err := s.Register(test.input)
+
+			// then
+			assertIsError(t, test.wantedErr, err)
 		})
 	}
 }
 
 func TestRegister_SendActivationMail(t *testing.T) {
-	withoutValidate(func() {
-		// given
-		dao := newMockUserDao()
-		sender := newMockSender(dao)
-		s := NewRegisterService(NewRepository(dao), sender)
+	// given
+	repository := newUserRepository()
 
-		// when
-		err := s.Register(&RegisterInput{
-			Email:                "newEmail@gmail.com",
-			Username:             "newUser",
-			Password:             "1234abcd",
-			PasswordConfirmation: "1234abcd",
-		})
-		sender.wg.Wait()
-
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, "newEmail@gmail.com", sender.email)
-	})
-}
-
-type mockSender struct {
-	dao ReadGateway
-
-	email         string
-	activationKey string
-
-	wg *sync.WaitGroup
-}
-
-func (sender *mockSender) SendActivationEmail(userID int) {
-	defer sender.wg.Done()
-
-	u, err := sender.dao.FindUserByID(userID)
-	if err != nil {
-		return
-	}
-
-	sender.email = u.Email
-	sender.activationKey = u.ActivationKey
-
-	return
-}
-
-func newMockSender(dao ReadGateway) *mockSender {
-	wg := &sync.WaitGroup{}
+	wg := new(sync.WaitGroup)
 	wg.Add(1)
+	sent := false
+	mailer := &mock.Mailer{SendFunc: func(subject string, tmpl string, data interface{}, to []string) error {
+		sent = true
+		wg.Done()
+		return nil
+	}}
 
-	return &mockSender{dao: dao, wg: wg}
+	s := New(&Config{
+		UserRepository: repository,
+		Mailer:         mailer,
+		ActivateURL:    "/activation",
+	})
+
+	// when
+	err := s.Register(&RegisterInput{
+		Email:                "newEmail@gmail.com",
+		Username:             "newUser",
+		Password:             "1234abcd",
+		PasswordConfirmation: "1234abcd",
+		FullName:             "VictorNM",
+	})
+	wg.Wait()
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, sent)
 }
 
 func TestRegister_ValidateInput(t *testing.T) {
@@ -231,9 +194,13 @@ func TestRegister_ValidateInput(t *testing.T) {
 
 		for i, input := range tests {
 			t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-				dao := newMockUserDao()
+				dao := gatewayMemory.NewUserGateway()
+				repository := mock.NewRepository(dao)
 
-				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
+				s := New(&Config{
+					UserRepository: repository,
+					Mailer:         &mock.Mailer{},
+				})
 
 				assert.NoError(t, s.Register(input))
 			})
@@ -301,19 +268,16 @@ func TestRegister_ValidateInput(t *testing.T) {
 
 		for name, input := range tests {
 			t.Run(name, func(t *testing.T) {
-				dao := newMockUserDao()
+				err := input.Valid()
 
-				s := NewRegisterService(NewRepository(dao), newMockSender(dao))
-
-				err := s.Register(input)
-
-				assertIsError(t, ErrInvalidInput, err)
+				assert.Error(t, err)
 			})
 		}
 	})
 }
 
 func assertIsError(t *testing.T, wanted, got error) {
+	t.Helper()
 	if !errors.Is(got, wanted) {
 		t.Errorf("Error %v is not an %v", got, wanted)
 	}

@@ -2,7 +2,7 @@ package user
 
 import (
 	"errors"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 )
 
 var ErrNotFound = errors.New("user not found")

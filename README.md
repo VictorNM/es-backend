@@ -1,6 +1,8 @@
 # E-SHARING
 
 ![Go](https://github.com/VictorNM/es-backend/workflows/Go/badge.svg?branch=develop)
+[![Build Status](https://travis-ci.com/VictorNM/es-backend.svg?branch=develop)](https://travis-ci.com/VictorNM/es-backend)
+[![codecov](https://codecov.io/gh/VictorNM/es-backend/branch/develop/graph/badge.svg)](https://codecov.io/gh/VictorNM/es-backend)
 
 [//]: <> (## Getting Started)
 
@@ -75,6 +77,8 @@ Open browser at: `{host}/swagger/index.html`
 ## Authors
 
 * **VictorNM** - *Initial work* - [VictorNM](https://github.com/VictorNM)
+
+* **bobgel12** - [bobgel12](https://github.com/bobgel12)
 
 [//]: <> (## License)
 

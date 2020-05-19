@@ -21,6 +21,7 @@ type UserRow struct {
 	IsActive       bool      `db:"is_active"`
 	IsSuperAdmin   bool      `db:"is_super_admin"`
 	ActivationKey  string    `db:"activation_key"`
+	OAuth2Provider string    `db:"oauth2_provider"`
 }
 
 type CourseRow struct {

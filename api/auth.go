@@ -1,13 +1,25 @@
 package api
 
 import (
-	"github.com/victornm/es-backend/auth"
 	"net/http"
+	"os"
 	"strings"
 
+	"github.com/victornm/es-backend/pkg/mailer"
+
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/store/memory"
+	"github.com/victornm/es-backend/pkg/auth"
+	"github.com/victornm/es-backend/pkg/auth/mock"
+	"github.com/victornm/es-backend/pkg/store/memory"
 )
+
+type AuthConfig struct {
+	JWTSecret       string
+	JWTExpiredHours int
+
+	OAuth2GoogleClientID     string
+	OAuth2GoogleClientSecret string
+}
 
 // @Summary Basic sign in using email, password
 // @Description Sign in using email and password
@@ -17,7 +29,7 @@ import (
 // @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "Not authenticated"
 // @Router /users/sign-in [post]
 func (s *realServer) createSignInHandler() gin.HandlerFunc {
-	authService := s.createBasicSignInService()
+	authService := s.createAuthService()
 
 	return func(c *gin.Context) {
 		email, password, ok := c.Request.BasicAuth()
@@ -49,7 +61,7 @@ type authToken struct {
 // @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
 // @Router /users/register [post]
 func (s *realServer) createRegisterHandler() gin.HandlerFunc {
-	service := s.createRegisterService()
+	service := s.createAuthService()
 
 	return func(c *gin.Context) {
 		var input *auth.RegisterInput
@@ -67,38 +79,117 @@ func (s *realServer) createRegisterHandler() gin.HandlerFunc {
 	}
 }
 
-func (s *realServer) createAuthMiddleware() gin.HandlerFunc {
-	tokenParser := s.createAuthTokenParser()
+// @Summary Register using oauth2
+// @Description Register using oauth2
+// @Tags auth
+// @Produce json
+// @Param user body auth.OAuth2Input true "Register new user using oauth2"
+// @Success 201 {object} api.BaseResponse "Register successfully"
+// @Failure 400 {object} api.BaseResponse{errors=[]api.Error} "Bad request"
+// @Router /oauth2/register [post]
+func (s *realServer) createOauth2RegisterHandler() gin.HandlerFunc {
+	service := s.createAuthOAuth2Service()
 
 	return func(c *gin.Context) {
-		// Look for an Authorization header
-		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
-			// Should be a bearer token
-			if len(authHeader) > 6 && strings.ToUpper(authHeader[0:7]) == "BEARER " {
-				userAuth, err := tokenParser.ParseToken(authHeader[7:])
-				if err != nil {
-					reject(c, http.StatusUnauthorized, err)
-					return
-				}
-
-				c.Set("user", userAuth)
-			}
+		var input auth.OAuth2Input
+		err := c.ShouldBindJSON(&input)
+		if err != nil {
+			reject(c, http.StatusBadRequest, auth.ErrInvalidInput)
+			return
 		}
+
+		err = service.OAuth2Register(input)
+		if err != nil {
+			reject(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		response(c, http.StatusCreated, nil)
 	}
 }
 
-func (s *realServer) createAuthTokenParser() auth.JWTParserService {
-	return auth.NewJWTParserService(s.config.JWTSecret)
+// @Summary Sign in using oauth2
+// @Description Sign in using oauth2
+// @Tags auth
+// @Produce json
+// @Param user body auth.OAuth2Input true "Sign in using oauth2"
+// @Success 200 {object} api.BaseResponse{data=authToken} "Sign in successfully"
+// @Failure 401 {object} api.BaseResponse{errors=[]api.Error} "Not authenticated"
+// @Router /oauth2/sign-in [post]
+func (s *realServer) createOauth2SignInHandler() gin.HandlerFunc {
+	service := s.createAuthOAuth2Service()
+
+	return func(c *gin.Context) {
+		var input auth.OAuth2Input
+		err := c.ShouldBindJSON(&input)
+		if err != nil {
+			reject(c, http.StatusBadRequest, auth.ErrInvalidInput)
+			return
+		}
+
+		tokenString, err := service.OAuth2SignIn(input)
+		if err != nil {
+			reject(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		response(c, http.StatusCreated, authToken{Token: tokenString})
+	}
 }
 
-func (s *realServer) createBasicSignInService() auth.BasicSignInService {
-	return auth.NewBasicSignInService(s.createAuthUserRepository(), s.config.JWTSecret, s.config.JWTExpiredHours)
+func (s *realServer) createAuthMiddleware() gin.HandlerFunc {
+	tokenParser := s.createJWTService()
+
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if len(authHeader) < 7 || strings.ToUpper(authHeader[0:7]) != "BEARER " {
+			abort(c, http.StatusUnauthorized, auth.ErrNotAuthenticated)
+			return
+		}
+
+		userAuth, err := tokenParser.ParseToken(authHeader[7:])
+		if err != nil {
+			abort(c, http.StatusUnauthorized, err)
+			return
+		}
+
+		c.Set("user", userAuth)
+	}
 }
 
-func (s *realServer) createRegisterService() auth.RegisterService {
-	return auth.NewRegisterService(s.createAuthUserRepository(), auth.NewConsoleSender(s.createAuthUserRepository(), s.config.FrontendBaseURL))
+func (s *realServer) createJWTService() auth.JWTService {
+	return auth.NewJWTService(s.config.JWTSecret, s.config.JWTExpiredHours)
 }
 
-func (s *realServer) createAuthUserRepository() auth.UserRepository {
-	return auth.NewRepository(memory.UserStore)
+func (s *realServer) createAuthService() auth.Service {
+	return auth.New(&auth.Config{
+		UserRepository: createAuthUserRepository(s),
+		Mailer:         createMailer(s),
+		JWTService:     s.createJWTService(),
+		ActivateURL:    s.config.FrontendBaseURL + "/activate",
+	})
+}
+
+func (s *realServer) createAuthOAuth2Service() auth.OAuth2Service {
+	return auth.NewOAuth2Service(&auth.OAuth2Config{
+		UserRepository: createAuthUserRepository(s),
+		JWTService:     s.createJWTService(),
+		Providers: []auth.OAuth2Provider{
+			auth.NewGoogleProvider(
+				s.config.OAuth2GoogleClientID,
+				s.config.OAuth2GoogleClientSecret,
+			),
+		},
+	})
+}
+
+// TODO: Change to real repository
+var createAuthUserRepository = func(s *realServer) auth.UserRepository {
+	return mock.NewRepository(memory.GlobalUserStore)
+}
+
+var createMailer = func(s *realServer) *mailer.Mailer {
+	account := os.Getenv("MAIL_ACCOUNT")
+	password := os.Getenv("MAIL_PASSWORD")
+	return mailer.New("smtp.gmail.com", 587, account, password, account)
 }

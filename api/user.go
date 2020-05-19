@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/victornm/es-backend/store/memory"
-	"github.com/victornm/es-backend/user"
+	"github.com/victornm/es-backend/pkg/store/memory"
+	"github.com/victornm/es-backend/pkg/user"
 	"net/http"
 )
 
@@ -29,5 +29,9 @@ func (s *realServer) createGetProfileHandler() gin.HandlerFunc {
 }
 
 func (s *realServer) createUserGetProfileQuery() user.GetProfileQuery {
-	return user.NewQueryService(memory.UserStore)
+	return user.NewQueryService(createUserFinder(s))
+}
+
+var createUserFinder = func(srv *realServer) user.Finder {
+	return memory.GlobalUserStore
 }

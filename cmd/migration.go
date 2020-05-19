@@ -77,7 +77,6 @@ func newMigrate(sourceURL, databaseURL string) *migrate.Migrate {
 }
 
 type migrationLogger struct {
-
 }
 
 // Printf is like fmt.Printf

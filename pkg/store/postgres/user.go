@@ -3,7 +3,7 @@ package postgres
 import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/victornm/es-backend/store"
+	"github.com/victornm/es-backend/pkg/store"
 	"time"
 )
 
